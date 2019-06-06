@@ -33,8 +33,7 @@ Limitations:
     The application won't detect the screen edges if you are using (focused) an elevated privileged application. But you can always restart the application as administrator.
     If you have multiple monitors, it won't work in a secondary monitor.
 
-Download:
-WinXCorners 1.0
+
 [UPDATE August 2016]
 WinXCorners 1.1.0.3 beta
 
