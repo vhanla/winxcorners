@@ -1,0 +1,60 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{DD5D3BF6-79F0-4F0D-A552-E035AA0D9BE0}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="..\DEMOs\LogForegroundWindow\LogForegroundWindow.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="WinXHelper.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="WinXCorners.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="LogForegroundWindow">
+        <MSBuild Projects="..\DEMOs\LogForegroundWindow\LogForegroundWindow.dproj"/>
+    </Target>
+    <Target Name="LogForegroundWindow:Clean">
+        <MSBuild Projects="..\DEMOs\LogForegroundWindow\LogForegroundWindow.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="LogForegroundWindow:Make">
+        <MSBuild Projects="..\DEMOs\LogForegroundWindow\LogForegroundWindow.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="WinXHelper">
+        <MSBuild Projects="WinXHelper.dproj"/>
+    </Target>
+    <Target Name="WinXHelper:Clean">
+        <MSBuild Projects="WinXHelper.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="WinXHelper:Make">
+        <MSBuild Projects="WinXHelper.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="WinXCorners">
+        <MSBuild Projects="WinXCorners.dproj"/>
+    </Target>
+    <Target Name="WinXCorners:Clean">
+        <MSBuild Projects="WinXCorners.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="WinXCorners:Make">
+        <MSBuild Projects="WinXCorners.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="LogForegroundWindow;WinXHelper;WinXCorners"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="LogForegroundWindow:Clean;WinXHelper:Clean;WinXCorners:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="LogForegroundWindow:Make;WinXHelper:Make;WinXCorners:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
