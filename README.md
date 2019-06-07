@@ -1,8 +1,6 @@
 ![snp1](https://lh3.googleusercontent.com/-WX2q36irA1M/Vh-zdi1V0RI/AAAAAAAALQU/W6EXCviEaSA/WinXCorners%25255B1%25255D.jpg?imgmax=800)
 # WinXcorners
 
-version 1.0
-
 ## Requirements
 
     Windows 10 x86/x64
@@ -64,6 +62,8 @@ New features:
 ![snp5](https://lh3.googleusercontent.com/-NtNXrUcUUus/V6VlOWJMPeI/AAAAAAAALxM/hmfgAnoSvK8/image%25255B12%25255D.png?imgmax=800)
 You can call this advanced options dialog from System Tray icon (right click –> Advanced)
 
+WIP Support for light theme on Windows 10 May 2019 Update
+![imagen](https://user-images.githubusercontent.com/1015823/59126095-d2835e80-8929-11e9-9b89-6023164aaa8d.png)
 
 
 MIT License
