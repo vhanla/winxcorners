@@ -624,8 +624,14 @@ begin
     SystrayIcon := TIcon.Create;
 
   if grayed then
+    if SystemUsesLightTheme then
+    SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_1')
+    else
     SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_2')
   else
+    if SystemUsesLightTheme then
+    SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_2')
+    else
     SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_1');
 
   toUpdate := False;

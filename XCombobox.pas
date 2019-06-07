@@ -199,7 +199,7 @@ begin
       bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha(BlendColors(clBlack,GetAccentColor,50),200)
     else
       if SystemUsesLightTheme then
-        bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($222222,200)
+        bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($dddddd,200)
       else
         bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($222222,200);
     bmp.Canvas.FillRect(Rect(0,0,Width,Height));
@@ -219,6 +219,9 @@ begin
         // let's draw
         brush := TGPSolidBrush.Create(MakeGDIPColor(_disabledColor));//any color for now
         try
+          if SystemUsesLightTheme then
+          pen := TGPPen.Create(MakeGDIPColor(clBlack,100),2)
+          else
           pen := TGPPen.Create(MakeGDIPColor(_disabledColor,100),2); // any color  for now
           try
             if _enabled then
@@ -230,6 +233,9 @@ begin
                 brush.SetColor(MakeGDIPColor(_disabledColor));
               end;
               if not _mousepressed and _mousehover then
+                if SystemUsesLightTheme then
+                pen.SetColor(MakeGDIPColor($333333))
+                else
                 pen.SetColor(MakeGDIPColor(_disabledColor));//(BlendColors(_disabledColor,clWhite,70)));
 
               graph.DrawLine(pen,l,t,l+w,t);
@@ -256,6 +262,9 @@ begin
                 txt := _caption;
                 graph.DrawString(txt,Length(txt),xfont,MakePoint(15.0,(Height/2-_font.Size)),nil,brush);
                 graph.SetTextRenderingHint(TextRenderingHintSingleBitPerPixelGridFit);
+                if SystemUsesLightTheme then
+                brush.SetColor(MakeGDIPColor($333333))
+                else
                 brush.SetColor(MakeGDIPColor($FFFFFF));
                 graph.DrawString(txt,Length(txt),xfont,MakePoint(15.0,(Height/2-_font.Size)),nil,brush);
                 {graph.DrawString(txt,
