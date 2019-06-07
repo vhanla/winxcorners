@@ -1,5 +1,8 @@
 {
 Changelog:
+- 19-06-07
+  Added GetVisibleCount to return count of visible items only
+  Disabled automatic single monitor popup positioning TXMenuItems.Popup
 - 15-10-11
   Added WS_EX_TOOLWINDOW to ex_style in order to make it dissappear from alt-tab
   Set to 44 item height to make it look like Windows 10 combo box menu size
@@ -76,6 +79,7 @@ type
     function GetCount: Integer;
     function GetItem(Index: Integer): TXMenuItem;
     procedure SetSelectIndex(Value: Integer);
+    function GetVisibleCount: Integer;
   protected
     procedure UpdateSize;
 
@@ -105,6 +109,7 @@ type
     procedure Clear;
 
     property Count: Integer read GetCount;
+    property VisibleCount: Integer read GetVisibleCount;
     property Items[Index: Integer]: TXMenuItem read GetItem; default;
     property SelectIndex: Integer read FSelectIndex write SetSelectIndex nodefault;
     property Parent: TXMenuItem read FParent;
@@ -398,6 +403,18 @@ begin
   Result := FItems[Index];
 end;
 
+function TXMenuItems.GetVisibleCount: Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 0  to FItems.Count - 1 do
+  begin
+    if TXMenuItem(FItems[I]).Visible then
+      Result := Result + 1;
+  end;
+end;
+
 procedure TXMenuItems.SetSelectIndex(Value: Integer);
 var
   i: Integer;
@@ -527,7 +544,7 @@ begin
   UpdateSize;
   FLeft := X;
   FTop := Y;
-  if (FLeft + FWidth < GetSystemMetrics(SM_CXSCREEN)) then
+  //if (FLeft + FWidth < GetSystemMetrics(SM_CXSCREEN)) then
   begin
     dec(FLeft, ArrowSize div 2 + Diameter div 2 + 3);
     if (FTop + FHeight > GetSystemMetrics(SM_CYSCREEN)) then
@@ -541,7 +558,7 @@ begin
       FArrowPos := apLeftTop;
       inc(FTop, 1);
     end;
-  end else
+  end {else
   begin
     if Assigned(FParent) then
       dec(FLeft, FWidth + FParent.Parent.FWidth - 18)
@@ -558,7 +575,7 @@ begin
       FArrowPos := apRightTop;
       inc(FTop, 1);
     end;
-  end;
+  end};
   FSelectIndex := -1;
   FFade := 0;
   Draw;

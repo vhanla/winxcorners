@@ -581,28 +581,24 @@ end;
 
 procedure TfrmTrayPopup.OnCornerOptionClick(Sender: TObject);
 const
-  MENUHEIGHT = 44 * 5; //6 - 1 items each 44 in height
+  MENUHEIGHT = 44; //* 5; //6 - 1 items each 44 in height
 var
   x,y: Integer;
+  totalMenuHeight: Integer;
 begin
   if sender is TXCombobox then
   begin
+    totalMenuHeight := XPopupMenu.Items.VisibleCount * MENUHEIGHT;
     x := Self.Left + (Sender as TXCombobox).Left;
     //y := Self.Top + TXCombobox(Sender).Top - 110;
 
     if TXCombobox(Sender).Top < 100 then
     begin
-      if XPopupMenu.Items[5].Visible then
-      y := Self.Top + TXCombobox(Sender).Top - 86
-      else
       y := Self.Top + TXCombobox(Sender).Top - 11;
     end
     else
     begin
-      if XPopupMenu.Items[5].Visible then
-      y := Self.Top + TXCombobox(Sender).Top - MENUHEIGHT - 78
-      else
-      y := Self.Top + TXCombobox(Sender).Top - MENUHEIGHT - 4;
+      y := Self.Top + TXCombobox(Sender).Top - totalMenuHeight - 4;
     end;
 
     CornerOption := TXCombobox(Sender);
