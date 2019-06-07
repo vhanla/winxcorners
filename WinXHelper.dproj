@@ -1,7 +1,7 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{092751F1-ABBA-4506-831E-7F2462DD8C86}</ProjectGuid>
-        <ProjectVersion>18.4</ProjectVersion>
+        <ProjectVersion>18.6</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <MainSource>WinXHelper.dpr</MainSource>
         <Base>True</Base>

@@ -630,7 +630,7 @@ begin
     SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_2')
   else
     if SystemUsesLightTheme then
-    SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_2')
+    SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_3')
     else
     SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_1');
 
