@@ -1,5 +1,8 @@
 {
 Changelog:
+- 19-06-10
+  Fixed window resize on screen resolution change
+  using WM_DISPLAYCHANGE event
 - 17-06-03
   Added multimonitor support
 - 16-08-05
@@ -878,6 +881,12 @@ begin
   begin
     UpdateColorization;
   end;
+
+  if Msg.Msg = WM_DISPLAYCHANGE then
+  begin
+    Self.Width := XCombo2.Left + XCombo2.Width + 14;
+  end;
+
 
   inherited WndProc(Msg);
 end;
