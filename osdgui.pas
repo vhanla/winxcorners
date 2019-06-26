@@ -24,6 +24,8 @@ var
 implementation
 
 {$R *.dfm}
+
+uses main;
 type
   TFixedStreamAdapter = class(TStreamAdapter)
   public
@@ -185,6 +187,7 @@ procedure TfrmOSD.FormCreate(Sender: TObject);
 var
   renderPolicy: DWMWINDOWATTRIBUTE; //integer;//DWMWINDOWATTRIBUTE;
 begin
+  frmMain.tmrHotSpot.Enabled := True;
   BorderStyle := bsNone;
   FormStyle := fsStayOnTop;
   Font.Size := 18;

@@ -16,6 +16,7 @@ object frmMain: TfrmMain
   PixelsPerInch = 96
   TextHeight = 13
   object tmrHotSpot: TTimer
+    Enabled = False
     Interval = 250
     OnTimer = tmrHotSpotTimer
     Left = 24
@@ -50,5 +51,9 @@ object frmMain: TfrmMain
     OnTimer = tmrDelayTimer
     Left = 184
     Top = 24
+  end
+  object MadExceptionHandler1: TMadExceptionHandler
+    Left = 240
+    Top = 168
   end
 end

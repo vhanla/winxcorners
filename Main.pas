@@ -80,7 +80,8 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, ShellApi, Vcl.Menus, Registry, System.Generics.Collections;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, ShellApi, Vcl.Menus, Registry, System.Generics.Collections,
+  madExceptVcl;
 
 const
   WM_DPICHANGED = $02E0;
@@ -102,6 +103,7 @@ type
     About1: TMenuItem;
     tmrDelay: TTimer;
     Advanced1: TMenuItem;
+    MadExceptionHandler1: TMadExceptionHandler;
     procedure tmrHotSpotTimer(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);

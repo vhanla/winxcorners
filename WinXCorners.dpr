@@ -23,6 +23,11 @@ program WinXCorners;
 {$R *.dres}
 
 uses
+  madExcept,
+  madLinkDisAsm,
+  madListHardware,
+  madListProcesses,
+  madListModules,
   Vcl.Forms,
   Winapi.Windows,
   Main in 'Main.pas' {frmMain},
