@@ -189,9 +189,10 @@ begin
     Reg.RootKey := HKEY_LOCAL_MACHINE;
     if Reg.OpenKeyReadOnly('SOFTWARE\Microsoft\Windows NT\CurrentVersion') then
     begin
-      if (Reg.ReadString('CurrentVersion') = '6.3')
-      and (StrToInt (Reg.ReadString('CurrentBuildNumber')) >= 10240) then
-        Result := True;
+      if Reg.ValueExists('CurrentVersion') then
+        if (Reg.ReadString('CurrentVersion') = '6.3')
+        and (StrToInt (Reg.ReadString('CurrentBuildNumber')) >= 10240) then
+          Result := True;
     end;
   finally
     Reg.Free;
@@ -210,9 +211,10 @@ begin
     Reg.RootKey := HKEY_LOCAL_MACHINE;
     if Reg.OpenKeyReadOnly('SOFTWARE\Microsoft\Windows NT\CurrentVersion') then
     begin
-      if (Reg.ReadString('CurrentVersion') = '6.3')
-      and (StrToInt(Reg.ReadString('CurrentBuildNumber')) >= 17134) then
-        Result := True;          
+      if Reg.ValueExists('CurrentVersion') then
+        if (Reg.ReadString('CurrentVersion') = '6.3')
+        and (StrToInt(Reg.ReadString('CurrentBuildNumber')) >= 17134) then
+          Result := True;
     end;
   finally
     Reg.Free;
@@ -231,8 +233,9 @@ begin
     Reg.RootKey := HKEY_CURRENT_USER;
     if Reg.OpenKeyReadOnly('Software\Microsoft\Windows\CurrentVersion\Themes\Personalize') then
     begin
-      if (Reg.ReadInteger('SystemUsesLightTheme') = 1) then
-        Result := True;
+      if Reg.ValueExists('SystemUsesLightTheme') then
+        if (Reg.ReadInteger('SystemUsesLightTheme') = 1) then
+          Result := True;
     end;
   finally
     Reg.Free;
@@ -304,8 +307,9 @@ begin
     reg.RootKey := HKEY_CURRENT_USER;
     reg.OpenKeyReadOnly('SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize');
     try
-      if reg.ReadInteger('EnableTransparency') = 1 then
-      Result := True;
+      if reg.ValueExists('EnableTransparency') then
+        if reg.ReadInteger('EnableTransparency') = 1 then
+        Result := True;
     except
       Result := False;
     end;
@@ -326,8 +330,9 @@ begin
     reg.RootKey := HKEY_CURRENT_USER;
     reg.OpenKeyReadOnly('SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize');
     try
-      if reg.ReadInteger('ColorPrevalence') = 1 then
-      Result := True;
+      if reg.ValueExists('ColorPrevalence') then
+        if reg.ReadInteger('ColorPrevalence') = 1 then
+        Result := True;
     except
       Result := False;
     end;
