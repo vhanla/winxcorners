@@ -1,3 +1,5 @@
+<img src="http://img.shields.io/liberapay/patrons/vhanla.svg?logo=liberapay">
+
 ![snp1](https://lh3.googleusercontent.com/-WX2q36irA1M/Vh-zdi1V0RI/AAAAAAAALQU/W6EXCviEaSA/WinXCorners%25255B1%25255D.jpg?imgmax=800)
 # WinXcorners
 
