@@ -34,7 +34,8 @@ uses
   frmSettings in 'frmSettings.pas' {frmTrayPopup},
   XCombobox in 'XCombobox.pas',
   osdgui in 'osdgui.pas' {frmOSD},
-  frmAdvanced in 'frmAdvanced.pas' {frmAdvSettings};
+  frmAdvanced in 'frmAdvanced.pas' {frmAdvSettings},
+  functions in 'functions.pas';
 
 {$R *.res}
 
