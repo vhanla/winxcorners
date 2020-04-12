@@ -743,6 +743,7 @@ begin
   if Msg.msg = WM_DISPLAYCHANGE then
   begin
     // update all to make it work on multimonitor if changed
+    {TODO -oOwner -cGeneral : Improve to better detect restore functionality after monitor changes}
     cur := GetForegroundWindow;
     frmTrayPopup.Show;
     SetForegroundWindow(frmTrayPopup.Handle);
