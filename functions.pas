@@ -17,7 +17,7 @@ unit functions;
 interface
 
 uses
-Windows, Classes, TlHelp32, PsAPI, SysUtils, Registry, Graphics, DWMApi, PNGImage{,
+Windows, Forms, Classes, TlHelp32, PsAPI, SysUtils, Registry, Graphics, DWMApi, PNGImage{,
 UXTHeme, Themes} {uxtheme and themes for rendering text on glass }, OleAcc, Variants;
 
 type
@@ -51,6 +51,7 @@ function CreateSolidBrushWithAlpha(Color: TColor; Alpha: Byte = $FF): HBRUSH;
 function TaskbarTaskViewBtnClick: Boolean;
 {procedure DrawGlassText(Canvas: TCanvas; GlowSize: Integer; var Rect: TRect;
   var Text: UnicodeString; Format: DWORD); overload;}
+function GetCursorXY: TPoint;
 
   procedure SwitchToThisWindow(h1: hWnd; x: bool); stdcall;
   external user32 Name 'SwitchToThisWindow';
@@ -524,4 +525,13 @@ begin
     DrawThemeTextEx(ThemeServices.Theme[teEdit], Canvas.Handle, Part, State,
       PWideChar(Text), Length(Text), Format, @Rect, DTTOpts);
 end;}
+
+function GetCursorXY:TPoint;
+begin
+  if not Windows.GetCursorPos(Result) then
+  begin
+    Result := Point(Screen.Width div 2, Screen.Height div 2);
+  end;
+end;
+
 end.
