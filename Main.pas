@@ -144,15 +144,15 @@ var
 
 //  Screens : TObjectList<TScreens>;
 
-  procedure SwitchToThisWindow(h1: hWnd; x: bool); stdcall;
-  external user32 Name 'SwitchToThisWindow';
+//  procedure SwitchToThisWindow(h1: hWnd; x: bool); stdcall;
+//  external user32 Name 'SwitchToThisWindow' delayed;
 //  procedure RunHook(Handle: HWND); cdecl; external 'WinXHelper.dll' name 'RunHook';
 //  procedure KillHook; cdecl; external 'WinXHelper.dll' name 'KillHook';
 
 implementation
 
 uses
-  functions, frmSettings, osdgui, frmAdvanced;
+  functions, frmSettings, osdgui, frmAdvanced, XCombobox;
 {$R *.dfm}
 
 const
@@ -600,7 +600,7 @@ begin
 //  begin
     Cur := 0;
     try
-      MPos := Mouse.CursorPos;
+      MPos := GetCursorXY; // Mouse.CursorPos;
       // LogonUI (Ctrl+Alt+Del) doesn't return GetForegroundWindow
       Cur := GetForegroundWindow;
     except
@@ -736,6 +736,17 @@ begin
           frmTrayPopup.tempDisabled := False;
         end;
     end;
+  end;
+
+  if Msg.msg = WM_DISPLAYCHANGE then
+  begin
+    // update all to make it work on multimonitor if changed
+    var cur := GetForegroundWindow;
+    frmTrayPopup.Show;
+    SetForegroundWindow(frmTrayPopup.Handle);
+    sleep(10);
+    frmTrayPopup.Hide;
+    SetForegroundWindow(cur);
   end;
 
   inherited WndProc(Msg);
