@@ -716,6 +716,8 @@ begin
 end;
 
 procedure TfrmMain.WndProc(var Msg: TMessage);
+var
+  cur: HWND;
 begin
   if Msg.Msg = wmTaskbarRestartMsg then
   begin
@@ -741,7 +743,7 @@ begin
   if Msg.msg = WM_DISPLAYCHANGE then
   begin
     // update all to make it work on multimonitor if changed
-    var cur := GetForegroundWindow;
+    cur := GetForegroundWindow;
     frmTrayPopup.Show;
     SetForegroundWindow(frmTrayPopup.Handle);
     sleep(10);
