@@ -1,6 +1,6 @@
 ![Liberapay patrons](https://img.shields.io/liberapay/patrons/vhanla) ![GitHub All Releases](https://img.shields.io/github/downloads/vhanla/winxcorners/total)
 
-![snp1](https://lh3.googleusercontent.com/-WX2q36irA1M/Vh-zdi1V0RI/AAAAAAAALQU/W6EXCviEaSA/WinXCorners%25255B1%25255D.jpg?imgmax=800)
+[![snp1](https://lh3.googleusercontent.com/-WX2q36irA1M/Vh-zdi1V0RI/AAAAAAAALQU/W6EXCviEaSA/WinXCorners%25255B1%25255D.jpg?imgmax=800)](https://github.com/vhanla/winxcorners/releases)
 # WinXcorners
 
 ## Requirements
