@@ -1,6 +1,7 @@
-<img src="http://img.shields.io/liberapay/patrons/vhanla.svg?logo=liberapay">
+[![Liberapay patrons](https://img.shields.io/liberapay/patrons/vhanla?label=Become%20a%20patron&style=for-the-badge)](https://liberapay.com/vhanla)
+[![GitHub All Releases](https://img.shields.io/github/downloads/vhanla/winxcorners/total?style=for-the-badge)](https://github.com/vhanla/winxcorners/releases)
+[![paypal](https://img.shields.io/badge/Donate-PayPal-brightgreen.svg?style=for-the-badge)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=WSY8UC22GC8L4)
 
-![snp1](https://lh3.googleusercontent.com/-WX2q36irA1M/Vh-zdi1V0RI/AAAAAAAALQU/W6EXCviEaSA/WinXCorners%25255B1%25255D.jpg?imgmax=800)
 # WinXcorners
 
 ## Requirements
