@@ -2,6 +2,13 @@
 Functions that we will be using
 
 Changelog:
+20-08-12
+- Detect FullScreen DirectX 3D apps
+- Detect FullScreen normal apps
+- Detect ShellExtensions to trigger correctly show desktop and task viewer
+- Detect if start menu is shown
+20-04-12
+- GetCursorXY
 19-06-06
 - Support for light mode Windows 10 May 2019 Update
 18-09-03
@@ -18,7 +25,7 @@ interface
 
 uses
 Windows, Forms, Classes, TlHelp32, PsAPI, SysUtils, Registry, Graphics, DWMApi, PNGImage{,
-UXTHeme, Themes} {uxtheme and themes for rendering text on glass }, OleAcc, Variants;
+UXTHeme, Themes} {uxtheme and themes for rendering text on glass }, OleAcc, Variants, DirectDraw, ActiveX;
 
 type
   AccentPolicy = packed record
@@ -62,8 +69,49 @@ function AccessibleChildren(paccContainer: Pointer; iChildStart: LONGINT;
                              cChildren: LONGINT; out rgvarChildren: OleVariant;
                              out pcObtained: LONGINT): HRESULT; stdcall;
                              external 'OLEACC.DLL' name 'AccessibleChildren';
+function DetectFullScreen3D: Boolean;
+function DetectFullScreenApp: Boolean;
+function DetectShellTaskSwitch: Boolean;
+function DetectShellShowDesktop: Boolean;
+function IsStartMenuVisible: Boolean;
+function _Gui_BuildWindowList(in_hDesk: HDESK; in_hWnd: HWND; in_EnumChildren: BOOL;
+         in_RemoveImmersive: BOOL; in_ThreadID: UINT; out out_Cnt: Integer): PHandle;
 
 implementation
+const
+//https://stackoverflow.com/a/22105803/537347 Windows 8 or newer only
+  IID_AppVisibility: TGUID = '{2246EA2D-CAEA-4444-A3C4-6DE827E44313}';
+  CLSID_AppVisibility: TGUID = '{7E5FE3D9-985F-4908-91F9-EE19F9FD1514}';
+type
+  MONITOR_APP_VISIBILITY = (
+    MAV_UNKNOWN = 0,
+    MAV_NO_APP_VISIBLE = 1,
+    MAV_APP_VISIBLE = 2
+  );
+// *********************************************************************//
+// Interface: IAppVisibilityEvents
+// Flags:     (0)
+// GUID:      {6584CE6B-7D82-49C2-89C9-C6BC02BA8C38}
+// *********************************************************************//
+  IAppVisibilityEvents = interface(IUnknown)
+    ['{6584CE6B-7D82-49C2-89C9-C6BC02BA8C38}']
+    function AppVisibilityOnMonitorChanged(hMonitor: HMONITOR;
+              previousMode: MONITOR_APP_VISIBILITY;
+              currentMode: MONITOR_APP_VISIBILITY):HRESULT; stdcall;
+    function LauncherVisibilityChange(currentVisibleState: BOOL): HRESULT; stdcall;
+  end;
+// *********************************************************************//
+// Interface: IAppVisibility
+// Flags:     (0)
+// GUID:      {2246EA2D-CAEA-4444-A3C4-6DE827E44313}
+// *********************************************************************//
+  IAppVisibility = interface(IUnknown)
+    ['{2246EA2D-CAEA-4444-A3C4-6DE827E44313}']
+    function GetAppVisibilityOnMonitor(monitor: HMONITOR; out pMode: MONITOR_APP_VISIBILITY): HRESULT; stdcall;
+    function IsLauncherVisible(out pfVisible: BOOL): HRESULT; stdcall;
+    function Advise(pCallBack: IAppVisibilityEvents; out pdwCookie: DWORD): HRESULT; stdcall;
+    function Unadvise(dwCookie: DWORD): HRESULT; stdcall;
+  end;
 
 //http://stackoverflow.com/questions/95912/how-can-i-detect-if-my-process-is-running-uac-elevated-or-not
 function ProcessIsElevated(Process: Cardinal): Boolean;
@@ -532,6 +580,102 @@ begin
   begin
     Result := Point(Screen.Width div 2, Screen.Height div 2);
   end;
+end;
+
+function DetectFullScreen3D: Boolean;
+var
+  DW: IDirectDraw7;
+  HR: HRESULT;
+begin
+  Result := False;
+
+  HR := coinitialize(nil);
+  if Succeeded(HR) then
+  begin
+    HR := DirectDrawCreateEx(PGUID(DDCREATE_EMULATIONONLY), DW, IDirectDraw7, nil);
+    if HR = DD_OK then
+    begin
+      HR := DW.TestCooperativeLevel;
+      if HR = DDERR_EXCLUSIVEMODEALREADYSET then
+        Result := True;
+    end;
+  end;
+
+  CoUninitialize;
+end;
+
+function DetectFullScreenApp: Boolean;
+var
+  curwnd: HWND;
+begin
+  Result := False;
+  curwnd := GetForegroundWindow;
+  if curwnd <= 0 then Exit;
+
+end;
+
+function DetectShellTaskSwitch: Boolean;
+var
+  reg: TRegistry;
+begin
+  reg := TRegistry.Create;
+  try
+    reg.RootKey := HKEY_CLASSES_ROOT;
+    reg.OpenKeyReadOnly('CLSID');
+    Result := reg.KeyExists('{3080F90E-D7AD-11D9-BD98-0000947B0257}');
+  finally
+    reg.Free;
+  end;
+end;
+
+function DetectShellShowDesktop: Boolean;
+var
+  reg: TRegistry;
+begin
+  reg := TRegistry.Create;
+  try
+    reg.RootKey := HKEY_CLASSES_ROOT;
+    reg.OpenKeyReadOnly('CLSID');
+  finally
+    Result := reg.KeyExists('{3080F90D-D7AD-11D9-BD98-0000947B0257}');
+    reg.Free;
+  end;
+end;
+
+function IsStartMenuVisible: Boolean;
+var
+  acc: IAppVisibility;
+  res: HRESULT;
+  isLauncherVisible: BOOL;
+begin
+  Result := False;
+  // Initialization of COM is required to use the AppVisibility (CLSID_AppVisibility) object
+  res := CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
+  if Succeeded(res) then
+  begin
+    // Create the App Visibility component
+    res := CoCreateInstance(CLSID_AppVisibility, nil, CLSCTX_ALL, IID_AppVisibility, acc);
+    if Succeeded(res) then
+    begin
+      res := acc.IsLauncherVisible(isLauncherVisible);
+      if Succeeded(res) then
+        Result := Boolean(isLauncherVisible);
+    end;
+
+  end;
+  CoUninitialize;
+end;
+
+function _Gui_BuildWindowList(in_hDesk: HDESK; in_hWnd: HWND; in_EnumChildren: BOOL;
+         in_RemoveImmersive: BOOL; in_ThreadID: UINT; out out_Cnt: Integer): PHandle;
+var
+  lv_Max: UINT;
+  lv_Cnt: UINT;
+  lv_NtStatus: UINT;
+  lv_List: PHandle;
+begin
+//  initwin32
+
 end;
 
 end.
