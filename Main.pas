@@ -1,7 +1,7 @@
-{
+﻿{
 WinXCorners
 Author: Victor Alberto Gil <vhanla>
-A rewrite from scratch of Win7s� for Windows 10
+A rewrite from scratch of Win7sé for Windows 10
 
 TODO:
 HiDPI support - Works 75%
@@ -25,6 +25,16 @@ Features requested:
 - Virtual Desktop Screen switcher
 
 CHANGELOG:
+- 20-09-03
+  Added PascalScript for extending custom actions via pascal scripts
+  Moved actions to actionsManager.pas
+- 20-08-13
+  Added custom window list gui to pick and support drag&drop features from origin to picked window
+  Added knocking door like gesture to desktop sides in order to trigger actions
+  Added function to detect fullscreen UWP apps
+  Modified settings window to give a Windows 10 like design
+  Added update tray icon on WM_DWMCOLORIZATIONCOLORCHANGED in frmSettings
+  Replaced systray menu with custom UCL.Popup to give a Windows 10 look alike
 - 19-06-06
   Detect DarkMode/LightMode Windows 10 May Update 2019
 - 18-09-03
@@ -81,7 +91,9 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, ShellApi, Vcl.Menus, Registry, System.Generics.Collections,
-  madExceptVcl;
+  madExceptVcl, System.Actions, Vcl.ActnList, UCL.Classes, UCL.CheckBox,
+  UCL.ListButton, UCL.Form, UCL.Popup, UCL.ThemeManager, UCL.PopupMenu,
+  UCL.Panel, actionsManager;
 
 const
   WM_DPICHANGED = $02E0;
@@ -94,7 +106,7 @@ type
     constructor Create(myRect: TRect);overload;
   end;}
 
-  TfrmMain = class(TForm)
+  TfrmMain = class(TUForm)
     tmrHotSpot: TTimer;
     PopupMenu1: TPopupMenu;
     Exit1: TMenuItem;
@@ -104,6 +116,16 @@ type
     tmrDelay: TTimer;
     Advanced1: TMenuItem;
     MadExceptionHandler1: TMadExceptionHandler;
+    ActionList1: TActionList;
+    actCtrlAltTab: TAction;
+    actShowTaskView: TAction;
+    actShowActionCenterSidebar: TAction;
+    actShowDesktop: TAction;
+    UListButton1: TUListButton;
+    UListButton2: TUListButton;
+    UListButton3: TUListButton;
+    UListButton4: TUListButton;
+    UPanel1: TUPanel;
     procedure tmrHotSpotTimer(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -112,8 +134,21 @@ type
     procedure emporarydisabled1Click(Sender: TObject);
     procedure tmrDelayTimer(Sender: TObject);
     procedure Advanced1Click(Sender: TObject);
+    procedure actCtrlAltTabExecute(Sender: TObject);
+    procedure actShowTaskViewExecute(Sender: TObject);
+    procedure actShowActionCenterSidebarExecute(Sender: TObject);
+    procedure actShowDesktopExecute(Sender: TObject);
+    procedure UListButton3Click(Sender: TObject);
+    procedure UListButton4Click(Sender: TObject);
+    procedure UListButton2Click(Sender: TObject);
+    procedure UListButton1Click(Sender: TObject);
+    procedure FormShow(Sender: TObject);
   private
     { Private declarations }
+    FSystray: TFormPopup;
+    FShellTaskViewExists: Boolean;
+    FShellShowDesktopExists: Boolean;
+    FPrevHandle: HWND;
     iconData: TNotifyIconData;
     SystrayIcon: TIcon;
     OnHotSpot: Boolean;
@@ -126,6 +161,8 @@ type
     procedure AutoStartState;
     procedure RegAutoStart(registerasrun: boolean = true);
     procedure WMDpiChanged(var Message: TMessage); message WM_DPICHANGED;
+    procedure ShowPopup;
+    procedure ClosePopup;
   protected
     procedure WndProc(var Msg: TMessage); override;
     //procedure WMCopyData(var Msg: TMessage); message WM_COPYDATA;
@@ -134,12 +171,14 @@ type
     { Public declarations }
     procedure CreateParams(var Params: TCreateParams); override;
     procedure UpdateTrayIcon(grayed: boolean = False);
+    property PrevHandle: HWND read FPrevHandle write FPrevHandle;
 
   end;
 
 var
   frmMain: TfrmMain;
   CurrentForegroundHwnd: HWND;
+  PrevSystrayTime: Int64 = 0;
   wmTaskbarRestartMsg: Cardinal;
 
 //  Screens : TObjectList<TScreens>;
@@ -152,7 +191,7 @@ var
 implementation
 
 uses
-  functions, frmSettings, osdgui, frmAdvanced, XCombobox;
+  functions, frmSettings, osdgui, frmAdvanced, XCombobox, frmWinTiles;
 {$R *.dfm}
 
 const
@@ -173,10 +212,18 @@ begin
 
   SetPriorityClass(GetCurrentProcess, $4000);
 
+  FShellTaskViewExists := DetectShellTaskSwitch;
+  FShellShowDesktopExists := DetectShellShowDesktop;
+
   wmTaskbarRestartMsg := RegisterWindowMessage('TaskbarCreated');
 
   UpdateTrayIcon();
 
+  ThemeManager.ThemeType := TUThemeType.ttDark;
+  //ugly workaround to allow custom popup
+  Width := 10; Height := 10;
+  SetWindowLong(Handle, GWL_EXSTYLE, GetWindowLong(Handle, GWL_EXSTYLE) or WS_EX_LAYERED or WS_EX_TOOLWINDOW or WS_EX_TRANSPARENT);
+  SetLayeredWindowAttributes(Handle, 0, 0, LWA_ALPHA);
 
   FormStyle := fsStayOnTop;
   AutoStartState;
@@ -201,10 +248,13 @@ begin
     WTSUnRegisterSessionNotification(Handle);
 end;
 
+procedure TfrmMain.FormShow(Sender: TObject);
+begin
+  ShowWindow(Application.Handle, SW_HIDE);
+end;
+
 procedure TfrmMain.HotAction(hAction: string);
 // this neat fun method comes from http://stackoverflow.com/questions/12960702/enum-from-string
-type
-  THotAction = (haWindows, haDesktop, haScreenSaver, haMonitorOff, haActionCenter, haCustomCmd, haToggleOtherWindows, haNoAction);
 const
   HotActions: Array[THotAction] of string = ('All Windows','Desktop','Screen Saver','Monitors Off','Action Center', 'Custom Command', 'Hide Windows', '');
 
@@ -221,7 +271,7 @@ const
 //  Shell_SecondaryTrayWnd: HWND;
 //  procid: integer;
 begin
-  if frmTrayPopup.tempDisabled then
+  if frmTrayPopup.tempDisabled or DetectFullScreen3D then
   Exit;
 
   // avoid usage if mouse is in use (buttons down e.g.)
@@ -237,57 +287,26 @@ begin
       // let's first attempt using the taskview button
 //      if not TaskbarTaskViewBtnClick then
       begin
-        //this method works but ironically fails because it only works if app is elevated :V
-        //GetWindowThreadProcessId(GetForegroundWindow, @procid);
-        //if ProcessIsElevated(OpenProcess(PROCESS_ALL_ACCESS, False, procid)) then
-          //SwitchToThisWindow(Application.Handle, True);
-
-        //if GetForegroundWindow <> FindWindow('MultitaskingViewFrame','Vista Tareas') then
-        if GetForegroundWindow <> FindWindow('MultitaskingViewFrame',nil) then
-          SwitchToThisWindow(Application.Handle, True);
-
-        keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),0,0);
-        Sleep(10);
-        keybd_event(VK_TAB,MapVirtualKey(VK_TAB,0),0,0);
-        Sleep(10);
-        keybd_event(VK_TAB,MapVirtualKey(VK_TAB,0),KEYEVENTF_KEYUP,0);
-        Sleep(100);
-        keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),KEYEVENTF_KEYUP,0);
-        Sleep(100);
+        //actShowTaskView.Execute;
+        actCtrlAltTab.Execute;
       end;
     end;
     haActionCenter:
       begin
-        SwitchToThisWindow(Application.Handle, True);
-        keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),0,0);
-        Sleep(10);
-        keybd_event(Ord('A'),MapVirtualKey(Ord('A'),0),0,0);
-        Sleep(10);
-        keybd_event(Ord('A'),MapVirtualKey(Ord('A'),0),KEYEVENTF_KEYUP,0);
-        Sleep(100);
-        keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),KEYEVENTF_KEYUP,0);
-        Sleep(100);
+        actShowActionCenterSidebar.Execute;
       end;
     haDesktop:
-    begin
-      SwitchToThisWindow(Application.Handle, True);
-      keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),0,0);
-      Sleep(10);
-      keybd_event(Ord('D'),MapVirtualKey(Ord('D'),0),0,0);
-      Sleep(10);
-      keybd_event(Ord('D'),MapVirtualKey(Ord('D'),0),KEYEVENTF_KEYUP,0);
-      Sleep(100);
-      keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),KEYEVENTF_KEYUP,0);
-      Sleep(100);
-    end;
+      begin
+        actShowDesktop.Execute;
+      end;
     haScreenSaver:
-    begin
-      SendMessage(Application.Handle, WM_SYSCOMMAND, SC_SCREENSAVE, 0);
-    end;
+      begin
+        SendMessage(Application.Handle, WM_SYSCOMMAND, SC_SCREENSAVE, 0);
+      end;
     haMonitorOff:
-    begin
-      SendMessage(Application.Handle, WM_SYSCOMMAND, SC_MONITORPOWER,2);
-    end;
+      begin
+        SendMessage(Application.Handle, WM_SYSCOMMAND, SC_MONITORPOWER,2);
+      end;
     haCustomCmd:
     begin
       if frmAdvSettings.chkCustom.Checked then
@@ -296,7 +315,6 @@ begin
           ShellExecute(0, 'OPEN', PChar(frmAdvSettings.edCommand.Text),PChar(frmAdvSettings.edParams.Text),'', SW_HIDE)
         else
           ShellExecute(0, 'OPEN', PChar(frmAdvSettings.edCommand.Text),PChar(frmAdvSettings.edParams.Text),'', SW_SHOWNORMAL);
-
       end;
     end;
     haToggleOtherWindows:
@@ -535,9 +553,15 @@ begin
       About1.Enabled := False
     else
       About1.Enabled := True;}
-    frmTrayPopup.Timer2.Enabled := False; // this will fix twice clicks on popup menu if form2 is visble
+    frmTrayPopup.tmrTaskbarFocus.Enabled := False; // this will fix twice clicks on popup menu if form2 is visble
     frmTrayPopup.Close;
-    PopupMenu1.Popup(coord.X, coord.Y);
+    //PopupMenu1.Popup(coord.X, coord.Y);
+    // don't rush the popup, or it will show glitches on continuous creation
+    if (GetTickCount64 - PrevSystrayTime) > 500 then
+    begin
+      PrevSystrayTime := GetTickCount64;
+      ShowPopup;
+    end;
     PostMessage(Handle, WM_NULL, 0, 0);
   end
   else if Msg.LParam = WM_LBUTTONDOWN then
@@ -573,6 +597,28 @@ begin
   finally
     reg.Free;
   end;
+end;
+
+procedure TfrmMain.ShowPopup;
+begin
+  Visible := True;
+  if Assigned(FSystray) then
+  begin
+    try
+      FSystray.Close;
+    except
+
+    end;
+   Sleep(100);
+  end;
+
+  try
+    FSystray := TFormPopup.CreatePopup(Self, UPanel1, nil, Mouse.CursorPos.X, Mouse.CursorPos.Y, []);
+  except
+    if Assigned(FSystray) then
+      FreeAndNil(FSystray);
+  end;
+  SwitchToThisWindow(FSystray.Handle, False);
 end;
 
 procedure TfrmMain.tmrDelayTimer(Sender: TObject);
@@ -616,6 +662,50 @@ begin
 
   HotSpotAction(MPos);
 
+end;
+
+procedure TfrmMain.UListButton1Click(Sender: TObject);
+begin
+  ClosePopup;
+  Close;
+end;
+
+procedure TfrmMain.UListButton2Click(Sender: TObject);
+begin
+  ClosePopup;
+  frmAdvSettings.Show;
+end;
+
+procedure TfrmMain.UListButton3Click(Sender: TObject);
+begin
+  ClosePopup;
+  frmTrayPopup.XCombo1.Visible := False;
+  frmTrayPopup.XCombo2.Visible := False;
+  frmTrayPopup.XCombo3.Visible := False;
+  frmTrayPopup.XCombo4.Visible := False;
+  frmTrayPopup.XCheckbox1.Visible := False;
+  frmTrayPopup.XComboAsLabel.Visible := False;
+  if not frmTrayPopup.Visible then
+  frmTrayPopup.Show;
+  frmTrayPopup.Image1.Visible := True;
+  frmTrayPopup.Image1.Left := (frmTrayPopup.Width - frmTrayPopup.Image1.Width) div 2;
+  frmTrayPopup.Image1.Top := (frmTrayPopup.Height - frmTrayPopup.Image1.Height) div 2;
+end;
+
+procedure TfrmMain.UListButton4Click(Sender: TObject);
+begin
+  ClosePopup;
+  if emporarydisabled1.Checked then
+    RegAutoStart(False)
+  else
+    RegAutoStart;
+
+  emporarydisabled1.Checked := not emporarydisabled1.Checked;
+
+  if emporarydisabled1.Checked then
+    UListButton4.FontIcon := ''
+  else
+    UListButton4.FontIcon := '';
 end;
 
 procedure TfrmMain.UpdateTrayIcon(grayed: boolean);
@@ -771,6 +861,107 @@ begin
   frmTrayPopup.Image1.Top := (frmTrayPopup.Height - frmTrayPopup.Image1.Height) div 2;
 end;
 
+procedure TfrmMain.actCtrlAltTabExecute(Sender: TObject);
+begin
+  FPrevHandle := GetForegroundWindow;
+  if IsWindowVisible(wndListWindows.Handle) then
+  begin
+    SwitchToThisWindow(wndListWindows.Handle, False);
+    Exit;
+  end;
+
+  // hide start menu if visible
+  if IsStartMenuVisible then
+  begin
+    keybd_event(VK_LWIN, 0, 0, 0);
+    keybd_event(VK_LWIN, 0, KEYEVENTF_KEYUP, 0);
+  end;
+
+  wndListWindows.Show;
+  SwitchToThisWindow(wndListWindows.Handle, False);
+  exit;
+//PerformCtrlAltTab; <~this is buggy
+    keybd_event(VK_CONTROL,MapVirtualKey(VK_CONTROL,0),0,0);
+//    Sleep(10);
+    keybd_event(VK_MENU,MapVirtualKey(VK_MENU,0),0,0);
+//    Sleep(10);
+    keybd_event(VK_TAB,MapVirtualKey(VK_TAB,0),0,0);
+    Sleep(10);
+    keybd_event(VK_TAB,MapVirtualKey(VK_TAB,0),KEYEVENTF_KEYUP,0);
+//    Sleep(100);
+    keybd_event(VK_MENU,MapVirtualKey(VK_MENU,0),KEYEVENTF_KEYUP,0);
+//    Sleep(100);
+    keybd_event(VK_CONTROL,MapVirtualKey(VK_CONTROL,0),KEYEVENTF_KEYUP,0);
+    Sleep(10);
+// back
+    keybd_event(VK_SHIFT,MapVirtualKey(VK_SHIFT,0),0,0);
+//    Sleep(10);
+    keybd_event(VK_TAB,MapVirtualKey(VK_TAB,0),0,0);
+    Sleep(5);
+    keybd_event(VK_TAB,MapVirtualKey(VK_TAB,0),KEYEVENTF_KEYUP,0);
+//    Sleep(100);
+    keybd_event(VK_SHIFT,MapVirtualKey(VK_SHIFT,0),KEYEVENTF_KEYUP,0);
+//    PerformShiftTab;
+    Sleep(100);
+end;
+
+procedure TfrmMain.actShowActionCenterSidebarExecute(Sender: TObject);
+begin
+  SwitchToThisWindow(Application.Handle, True);
+  keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),0,0);
+  Sleep(10);
+  keybd_event(Ord('A'),MapVirtualKey(Ord('A'),0),0,0);
+  Sleep(10);
+  keybd_event(Ord('A'),MapVirtualKey(Ord('A'),0),KEYEVENTF_KEYUP,0);
+  Sleep(100);
+  keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),KEYEVENTF_KEYUP,0);
+  Sleep(100);
+end;
+
+procedure TfrmMain.actShowDesktopExecute(Sender: TObject);
+begin
+  if FShellShowDesktopExists then
+    ShellExecute(0, PChar('OPEN'), PChar('explorer.exe'), PChar('shell:::{3080F90D-D7AD-11D9-BD98-0000947B0257}'), nil, SW_SHOWNORMAL)
+  else
+  begin
+    SwitchToThisWindow(Application.Handle, True);
+    keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),0,0);
+    Sleep(10);
+    keybd_event(Ord('D'),MapVirtualKey(Ord('D'),0),0,0);
+    Sleep(10);
+    keybd_event(Ord('D'),MapVirtualKey(Ord('D'),0),KEYEVENTF_KEYUP,0);
+    Sleep(100);
+    keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),KEYEVENTF_KEYUP,0);
+    Sleep(100);
+  end;
+end;
+
+procedure TfrmMain.actShowTaskViewExecute(Sender: TObject);
+begin
+  if FShellTaskViewExists then
+    ShellExecute(0, PChar('OPEN'), PChar('explorer.exe'), PChar('shell:::{3080F90E-D7AD-11D9-BD98-0000947B0257}'), nil, SW_SHOWNORMAL)
+  else // the old method which is hacky
+  begin
+    //this method works but ironically fails because it only works if app is elevated :V
+    //GetWindowThreadProcessId(GetForegroundWindow, @procid);
+    //if ProcessIsElevated(OpenProcess(PROCESS_ALL_ACCESS, False, procid)) then
+      //SwitchToThisWindow(Application.Handle, True);
+
+    //if GetForegroundWindow <> FindWindow('MultitaskingViewFrame','Vista Tareas') then
+    if GetForegroundWindow <> FindWindow('MultitaskingViewFrame',nil) then
+      SwitchToThisWindow(Application.Handle, True);
+
+    keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),0,0);
+    Sleep(10);
+    keybd_event(VK_TAB,MapVirtualKey(VK_TAB,0),0,0);
+    Sleep(10);
+    keybd_event(VK_TAB,MapVirtualKey(VK_TAB,0),KEYEVENTF_KEYUP,0);
+    Sleep(100);
+    keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),KEYEVENTF_KEYUP,0);
+    Sleep(100);
+  end;
+end;
+
 procedure TfrmMain.Advanced1Click(Sender: TObject);
 begin
   frmAdvSettings.Show;
@@ -786,13 +977,26 @@ begin
     reg.OpenKeyReadOnly('SOFTWARE\Microsoft\Windows\CurrentVersion\Run');
     try
     if reg.ReadString('WinXCorners')<> '' then
+    begin
       emporarydisabled1.Checked := True;
+      if emporarydisabled1.Checked then
+        UListButton4.FontIcon := ''
+      else
+        UListButton4.FontIcon := ''
+    end;
     except
     end;
     reg.CloseKey;
   finally
     reg.Free;
   end;
+end;
+
+procedure TfrmMain.ClosePopup;
+begin
+  if Assigned(FSystray) then
+    FSystray.Close;
+  Visible := False;
 end;
 
 procedure TfrmMain.CreateParams(var Params: TCreateParams);
