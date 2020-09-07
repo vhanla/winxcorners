@@ -2,6 +2,8 @@
 Functions that we will be using
 
 Changelog:
+20-09-07
+- Detect Taskbar always on top status
 20-08-12
 - Detect FullScreen DirectX 3D apps
 - Detect FullScreen normal apps
@@ -25,7 +27,8 @@ interface
 
 uses
 Windows, Forms, Classes, TlHelp32, PsAPI, SysUtils, Registry, Graphics, DWMApi, PNGImage{,
-UXTHeme, Themes} {uxtheme and themes for rendering text on glass }, OleAcc, Variants, DirectDraw, ActiveX;
+UXTHeme, Themes} {uxtheme and themes for rendering text on glass },
+OleAcc, Variants, DirectDraw, ActiveX, ShellApi;
 
 type
   AccentPolicy = packed record
@@ -74,6 +77,7 @@ function DetectFullScreenApp: Boolean;
 function DetectShellTaskSwitch: Boolean;
 function DetectShellShowDesktop: Boolean;
 function IsStartMenuVisible: Boolean;
+function IsTaskbarAlwaysOnTop: Boolean;
 function _Gui_BuildWindowList(in_hDesk: HDESK; in_hWnd: HWND; in_EnumChildren: BOOL;
          in_RemoveImmersive: BOOL; in_ThreadID: UINT; out out_Cnt: Integer): PHandle;
 
@@ -607,11 +611,45 @@ end;
 function DetectFullScreenApp: Boolean;
 var
   curwnd: HWND;
+  wndPlm: WINDOWPLACEMENT;
+  R: TRect;
+  Mon: TMonitor;
 begin
   Result := False;
   curwnd := GetForegroundWindow;
   if curwnd <= 0 then Exit;
 
+  // ignore maximized windows with caption bar
+  if GetWindowLong(curwnd, GWL_STYLE) and WS_CAPTION = WS_CAPTION then
+  begin
+    Exit;
+  end;
+
+  Mon := Screen.MonitorFromWindow(curwnd);
+  GetWindowRect(curwnd, R);
+  GetWindowPlacement(curwnd, wndPlm);
+  if (wndPlm.showCmd and SW_SHOWMAXIMIZED) = SW_SHOWMAXIMIZED then
+  begin
+    if (Mon.BoundsRect.Width = R.Width) and (Mon.BoundsRect.Height = R.Height) then
+      Result := True;
+  end
+  else
+  begin
+    // some applications do not set SW_SHOWMAXIMIZED flag e.g. MPC-HC media player
+    // ignore maximized when workarearect is similar (i.e. taskbar is on top, might not be the same on secondary monitor)
+//    if IsTaskbarAlwaysOnTop then
+//    begin
+//      if (Screen.MonitorCount > 1) and (Mon.Handle =
+//    if ((Screen.MonitorCount > 1) and (FindWindow('Shell_SecondaryTrayWnd', nil)<>0) and (Mon.WorkareaRect <> Mon.BoundsRect))
+//    // if there is another monitor without taskbar then
+//    or ((Screen.MonitorCount > 1) and (FindWindow('Shell_SecondaryTrayWnd', nil)=0) and (Mon.WorkareaRect = Mon.BoundsRect))
+//    then
+    begin
+      if (Mon.BoundsRect.Width = R.Width) and (Mon.BoundsRect.Height = R.Height) then
+        Result := True;
+   // end;
+    end;
+  end;
 end;
 
 function DetectShellTaskSwitch: Boolean;
@@ -664,6 +702,16 @@ begin
 
   end;
   CoUninitialize;
+end;
+
+function IsTaskbarAlwaysOnTop: Boolean;
+var
+  ABData: TAppBarData;
+begin
+  Result := False;
+  ABData.cbSize := SizeOf(TAppBarData);
+  if (SHAppBarMessage(ABM_GETSTATE, ABData) and ABS_AUTOHIDE) = ABS_AUTOHIDE then
+    Result := True;
 end;
 
 function _Gui_BuildWindowList(in_hDesk: HDESK; in_hWnd: HWND; in_EnumChildren: BOOL;
