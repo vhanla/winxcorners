@@ -210,7 +210,11 @@ uses ConvUtils;
 
 var
   StartupInput: TGDIPlusStartupInput;
+  {$ifdef VER340} //fix to Delphi 10.4
+  GDIPlusToken: NativeUint;
+  {$else}
   GDIPlusToken: DWORD;
+  {$endif}
 
 function RectToRectF(const ARect: TRect): TGPRectF;
 begin
