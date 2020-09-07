@@ -6,13 +6,16 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Samples.Spin,
   Vcl.ExtCtrls, ShellApi, IniFiles, IPPeerClient, Data.Bind.Components,
-  Data.Bind.ObjectScope, REST.Client{, REST.Client, JSon};
+  Data.Bind.ObjectScope, REST.Client, Vcl.ComCtrls, UCL.Form, UCL.Classes,
+  UCL.QuickButton, UCL.CaptionBar, UCL.Button, Vcl.WinXPanels, Vcl.WinXCtrls,
+  UCL.ListButton, UCL.ScrollBox, UCL.Panel, Vcl.Imaging.pngimage
+  {, REST.Client, JSon};
 
 const
   VERSION = '1.2';
 
 type
-  TfrmAdvSettings = class(TForm)
+  TfrmAdvSettings = class(TUForm)
     GroupBox1: TGroupBox;
     chkDelayGlobal: TCheckBox;
     valDelayGlobal: TSpinEdit;
@@ -27,8 +30,6 @@ type
     Label2: TLabel;
     chkShowCount: TCheckBox;
     GroupBox2: TGroupBox;
-    Button1: TButton;
-    Button2: TButton;
     Label3: TLabel;
     edCommand: TEdit;
     chkCustom: TCheckBox;
@@ -37,12 +38,33 @@ type
     edParams: TEdit;
     Label1: TLabel;
     Label5: TLabel;
+    GroupBox3: TGroupBox;
+    HotKey1: THotKey;
+    Label6: TLabel;
+    UCaptionBar1: TUCaptionBar;
+    UQuickButton1: TUQuickButton;
+    UButton1: TUButton;
+    UButton2: TUButton;
+    SplitView1: TSplitView;
+    CardPanel1: TCardPanel;
+    crdSettings: TCard;
+    crdAbout: TCard;
+    UListButton1: TUListButton;
+    UListButton2: TUListButton;
+    UScrollBox1: TUScrollBox;
+    StackPanel1: TStackPanel;
+    Panel1: TPanel;
+    UListButton3: TUListButton;
+    pnlContent: TUPanel;
+    Image1: TImage;
     procedure FormCreate(Sender: TObject);
-    procedure Button2Click(Sender: TObject);
     procedure Label4Click(Sender: TObject);
     procedure chkDelayGlobalClick(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
     procedure Label5Click(Sender: TObject);
+    procedure UButton1Click(Sender: TObject);
+    procedure UButton2Click(Sender: TObject);
+    procedure UListButton1Click(Sender: TObject);
+    procedure UListButton2Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -59,18 +81,6 @@ implementation
 {$R *.dfm}
 
 uses frmSettings;
-
-procedure TfrmAdvSettings.Button1Click(Sender: TObject);
-begin
-  SaveAdvancedIni;
-  Close
-end;
-
-procedure TfrmAdvSettings.Button2Click(Sender: TObject);
-begin
-  ReadAdvancedIni;
-  close
-end;
 
 procedure TfrmAdvSettings.chkDelayGlobalClick(Sender: TObject);
 begin
@@ -200,6 +210,28 @@ begin
   finally
     ini.Free;
   end;
+end;
+
+procedure TfrmAdvSettings.UButton1Click(Sender: TObject);
+begin
+  SaveAdvancedIni;
+  Close
+end;
+
+procedure TfrmAdvSettings.UButton2Click(Sender: TObject);
+begin
+  ReadAdvancedIni;
+  close
+end;
+
+procedure TfrmAdvSettings.UListButton1Click(Sender: TObject);
+begin
+  CardPanel1.ActiveCard := crdSettings;
+end;
+
+procedure TfrmAdvSettings.UListButton2Click(Sender: TObject);
+begin
+  CardPanel1.ActiveCard := crdAbout;
 end;
 
 end.
