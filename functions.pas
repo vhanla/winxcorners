@@ -80,7 +80,8 @@ function IsStartMenuVisible: Boolean;
 function IsTaskbarAlwaysOnTop: Boolean;
 function _Gui_BuildWindowList(in_hDesk: HDESK; in_hWnd: HWND; in_EnumChildren: BOOL;
          in_RemoveImmersive: BOOL; in_ThreadID: UINT; out out_Cnt: Integer): PHandle;
-
+function GetShellWindow:HWND;stdcall;
+    external user32 Name 'GetShellWindow';
 implementation
 const
 //https://stackoverflow.com/a/22105803/537347 Windows 8 or newer only
@@ -298,6 +299,7 @@ end;
 procedure EnableBlur(Wnd: HWND; Enable: Boolean = True);
 const
   WCA_ACCENT_POLICY = 19;
+  ACCENT_NORMAL = 0;
   ACCENT_ENABLE_GRADIENT = 1;
   ACCENT_ENABLE_TRANSPARENTGRADIENT = 2;
   ACCENT_ENABLE_BLURBEHIND = 3;
@@ -318,7 +320,7 @@ begin
       accent.AccentState := ACCENT_ENABLE_BLURBEHIND
   end
   else
-  accent.AccentState := ACCENT_ENABLE_TRANSPARENTGRADIENT;
+  accent.AccentState := ACCENT_NORMAL;
   accent.AccentFlags := DRAW_LEFT_BORDER or DRAW_TOP_BORDER or DRAW_RIGHT_BORDER or DRAW_BOTTOM_BORDER;
 
   data.attribute := WCA_ACCENT_POLICY;
@@ -621,9 +623,10 @@ begin
 
   // ignore maximized windows with caption bar
   if GetWindowLong(curwnd, GWL_STYLE) and WS_CAPTION = WS_CAPTION then
-  begin
     Exit;
-  end;
+
+  if not IsWindow(curwnd) then Exit;
+  if curwnd = GetShellWindow then Exit;
 
   Mon := Screen.MonitorFromWindow(curwnd);
   GetWindowRect(curwnd, R);
