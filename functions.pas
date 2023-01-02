@@ -2,6 +2,12 @@
 Functions that we will be using
 
 Changelog:
+22-11-15
+- Add Windows 11 detection and apply rounded corners for systray popup window mainly.
+22-07-11
+- Add reinit functions from RichEdit demo, in order to reinitialize forms applying new language
+20-09-27
+- Detect if DirectX is running in full screen mode
 20-09-07
 - Detect Taskbar always on top status
 20-08-12
@@ -47,6 +53,7 @@ type
 function ProcessIsElevated(Process: Cardinal): Boolean;
 function GetProcessNameFromWnd(Wnd: HWND): string;
 function isWindows10: boolean;
+function isWindows11: boolean;
 function isAcrylicSupported:boolean;
 function SystemUsesLightTheme:boolean;
 procedure EnableBlur(Wnd: HWND; Enable: Boolean = True);
@@ -72,6 +79,8 @@ function AccessibleChildren(paccContainer: Pointer; iChildStart: LONGINT;
                              cChildren: LONGINT; out rgvarChildren: OleVariant;
                              out pcObtained: LONGINT): HRESULT; stdcall;
                              external 'OLEACC.DLL' name 'AccessibleChildren';
+
+function IsDirectXAppRunningFullScreen: Boolean;
 function DetectFullScreen3D: Boolean;
 function DetectFullScreenApp: Boolean;
 function DetectShellTaskSwitch: Boolean;
@@ -82,7 +91,24 @@ function _Gui_BuildWindowList(in_hDesk: HDESK; in_hWnd: HWND; in_EnumChildren: B
          in_RemoveImmersive: BOOL; in_ThreadID: UINT; out out_Cnt: Integer): PHandle;
 function GetShellWindow:HWND;stdcall;
     external user32 Name 'GetShellWindow';
+function RtlGetVersion(var RTL_OSVERSIONINFOEXW): LONG; stdcall;
+  external 'ntdll.dll' Name 'RtlGetVersion';
+
+procedure ReinitializeForms;
+function LoadNewResourceModule(Locale: LCID): LongInt;
+
 implementation
+
+{ ReInit}
+uses Controls, Messages;
+
+type
+  TAsInheritedReader = class(TReader)
+  public
+    procedure ReadPrefix(var Flags: TFilerFlags; var AChildPos: Integer); override;
+  end;
+{!ReInit}
+
 const
 //https://stackoverflow.com/a/22105803/537347 Windows 8 or newer only
   IID_AppVisibility: TGUID = '{2246EA2D-CAEA-4444-A3C4-6DE827E44313}';
@@ -253,6 +279,15 @@ begin
   end;
 end;
 
+function isWindows11:Boolean;
+var
+  winver: RTL_OSVERSIONINFOEXW;
+begin
+  Result := False;
+  if ((RtlGetVersion(winver) = 0) and (winver.dwMajorVersion>=10) and (winver.dwBuildNumber > 22000))  then
+    Result := True;
+end;
+
 // Check Windows 10 RS4 version which onwards supports Acrylic Glass
 function isAcrylicSupported:boolean;
 var
@@ -296,6 +331,24 @@ begin
   end;
 end;
 
+const
+
+  //
+  // More information:
+  //      https://docs.microsoft.com/en-us/windows/apps/desktop/modernize/apply-rounded-corners
+  //      https://docs.microsoft.com/en-us/windows/win32/api/dwmapi/ne-dwmapi-dwmwindowattribute
+  //      https://docs.microsoft.com/en-us/windows/win32/api/dwmapi/nf-dwmapi-dwmsetwindowattribute
+  //
+
+  DWMWCP_DEFAULT    = 0; // Let the system decide whether or not to round window corners
+  DWMWCP_DONOTROUND = 1; // Never round window corners
+  DWMWCP_ROUND      = 2; // Round the corners if appropriate
+  DWMWCP_ROUNDSMALL = 3; // Round the corners if appropriate, with a small radius
+
+  DWMWA_WINDOW_CORNER_PREFERENCE = 33; // [set] WINDOW_CORNER_PREFERENCE, Controls the policy that rounds top-level window corners
+
+
+
 procedure EnableBlur(Wnd: HWND; Enable: Boolean = True);
 const
   WCA_ACCENT_POLICY = 19;
@@ -327,6 +380,14 @@ begin
   data.dataSize := SizeOf(accent);
   data.pData := @accent;
   SetWindowCompositionAttribute(Wnd, data);
+
+  if isWindows11  then
+  begin
+    var DWM_WINDOW_CORNER_PREFERENCE: Cardinal;
+    DWM_WINDOW_CORNER_PREFERENCE := DWMWCP_ROUND;
+     DwmSetWindowAttribute(Wnd, DWMWA_WINDOW_CORNER_PREFERENCE, @DWM_WINDOW_CORNER_PREFERENCE, sizeof(DWM_WINDOW_CORNER_PREFERENCE));
+
+  end;
 end;
 
 function GetAccentColor:TColor;
@@ -588,6 +649,19 @@ begin
   end;
 end;
 
+function IsDirectXAppRunningFullScreen;
+var
+  LSPI: Boolean;
+begin
+  if SystemParametersInfo(SPI_GETCURSORSHADOW, 0, @LSPI, 0) and not LSPI then
+  begin
+    if SystemParametersInfo(SPI_GETHOTTRACKING, 0, @LSPI, 0) and not LSPI then
+    begin
+      Result := DetectFullScreen3D;
+    end;
+  end;
+end;
+
 function DetectFullScreen3D: Boolean;
 var
   DW: IDirectDraw7;
@@ -627,6 +701,9 @@ begin
 
   if not IsWindow(curwnd) then Exit;
   if curwnd = GetShellWindow then Exit;
+  // Exclude WorkerW that have ClassName:SHELLDLL_DefView child since it is the Desktop hwnd
+  if FindWindowEx(curwnd, 0, 'SHELLDLL_DefView', nil) > 0 then Exit;
+
 
   Mon := Screen.MonitorFromWindow(curwnd);
   GetWindowRect(curwnd, R);
@@ -727,6 +804,125 @@ var
 begin
 //  initwin32
 
+end;
+
+{ TAsInheritedReader }
+
+procedure TAsInheritedReader.ReadPrefix(var Flags: TFilerFlags;
+  var AChildPos: Integer);
+begin
+  inherited ReadPrefix(Flags, AChildPos);
+  Include(Flags, ffInherited);
+end;
+
+{ ReInit}
+
+function InternalReloadComponentRes(const ResName: String; HInst: THandle; var Instance: TComponent): Boolean;
+var
+  HRsrc: THandle;
+  ResStream: TResourceStream;
+  AsInheritedReader: TAsInheritedReader;
+begin                   { avoid possible EResNotFound exception }
+
+  if HInst = 0 then HInst := HInstance;
+  Result := HRsrc <> 0;
+  if not Result then Exit;
+  ResStream := TResourceStream.Create(HInst, ResName, RT_RCDATA);
+  try
+    AsInheritedReader := TAsInheritedReader.Create(ResStream, 4096);
+    try
+      Instance := AsInheritedReader.ReadRootComponent(Instance);
+    finally
+      AsInheritedReader.Free;
+    end;
+  finally
+    ResStream.Free;
+  end;
+  Result := True;
+end;
+
+function ReloadInheritedComponent(Instance: TComponent; RootAncestor: TClass): Boolean;
+  function InitComponent(ClassType: TClass): Boolean;
+  begin
+    Result := False;
+    if (ClassType = TComponent) or (ClassType = RootAncestor) then Exit;
+    Result := InitComponent(ClassType.ClassParent);
+    Result := InternalReloadComponentRes(ClassType.ClassName, FindResourceHInstance(
+      FindClassHInstance(ClassType)), Instance) or Result;
+  end;
+begin
+  Result := InitComponent(Instance.ClassType);
+end;
+
+procedure ReinitializeForms;
+var
+  Count: Integer;
+  I: Integer;
+  Form: TForm;
+begin
+  Count := Screen.FormCount;
+  for I := 0 to Count - 1 do
+  begin
+    Form := Screen.Forms[I];
+    ReloadInheritedComponent(Form, TForm);
+  end;
+
+end;
+
+function SetResourceHInstance(NewInstance: LongInt): LongInt;
+var
+  CurModule: PLibModule;
+begin
+  CurModule := LibModuleList;
+  Result := 0;
+  while CurModule <> nil do
+  begin
+    if CurModule.Instance = HInstance then
+    begin
+      if CurModule.ResInstance <> CurModule.Instance then
+        FreeLibrary(CurModule.ResInstance);
+      CurModule.ResInstance := NewInstance;
+      Result := NewInstance;
+      Exit;
+    end;
+    CurModule := CurModule.Next;
+  end;
+end;
+
+function LoadNewResourceModule(Locale: LCID): LongInt;
+var
+  FileName: array [0..260] of Char;
+  P: PChar;
+  LocaleName: array [0..4] of Char;
+  NewInst: LongInt;
+begin
+  GetModuleFileName(HInstance, FileName, SizeOf(FileName));
+  GetLocaleInfo(Locale, LOCALE_SABBREVLANGNAME, LocaleName, SizeOf(LocaleName));
+  P := PChar(@FileName) + lstrlen(FileName);
+  while (P^ <> '.') and (P <> @FileName) do Dec(P);
+  NewInst := 0;
+  Result := 0;
+  if P <> @FileName then
+  begin
+    Inc(P);
+    if LocaleName[0] <> #0 then
+    begin
+      // Then look for a potential language/country translation
+      lstrcpy(P, LocaleName);
+      NewInst := LoadLibraryEx(FileName, 0, LOAD_LIBRARY_AS_DATAFILE);
+      if NewInst = 0 then
+      begin
+        // Finally look for a language only translation
+        LocaleName[2] := #0;
+        lstrcpy(P, LocaleName);
+        NewInst := LoadLibraryEx(FileName, 0, LOAD_LIBRARY_AS_DATAFILE);
+      end;
+
+    end;
+
+  end;
+  if NewInst <> 0 then
+    Result := SetResourceHInstance(NewInst);
 end;
 
 end.
