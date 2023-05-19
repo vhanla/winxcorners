@@ -8,6 +8,8 @@ Changelog:
 TODO:
   Add animation, and mouse drag
   Add touch support
+- 22-11-16
+  Windows 11 coloring with light/dark theme support
 - 17-06-02
   Fixed vertical disabled line on HiDpi 125% or more
   Fixed knob ellipse relative to height ratio
@@ -53,6 +55,7 @@ type
     procedure MouseEnter(var Message: TMessage); message CM_MOUSEENTER;
     procedure Click; override;
     procedure SetParent(Value: TWinControl); override;
+    procedure ChangeScale(M, D: Integer; DpiChanged: Boolean); override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -84,6 +87,13 @@ begin
 end;
 
 { TXCheckbox }
+
+procedure TXCheckbox.ChangeScale(M, D: Integer; DpiChanged: Boolean);
+begin
+  inherited;
+//  Width := MulDiv(Width, Screen.PixelsPerInch, 96);
+//  Height := MulDiv(Height, Screen.PixelsPerInch, 96);
+end;
 
 procedure TXCheckbox.Click;
 begin
@@ -206,7 +216,11 @@ begin
         // let's draw
         brush := TGPSolidBrush.Create(MakeGDIPColor(_disabledColor));//any color for now
         try
-          pen := TGPPen.Create(MakeGDIPColor(_disabledColor),2); // any color  for now
+          if isWindows11 then
+            pen := TGPPen.Create(MakeGDIPColor(_disabledColor),1) // any color  for now
+          else
+            pen := TGPPen.Create(MakeGDIPColor(_disabledColor),2); // any color  for now
+
           try
             if _chkstate then
             begin
@@ -219,11 +233,23 @@ begin
               graph.FillPath(brush, path );
               brush.SetColor(MakeGDIPColor(clWhite));
 
+
+              if isWindows11 then
+              begin
+                brush.SetColor(MakeGDIPColor(clBlack));
+                if SystemUsesLightTheme then
+                  brush.SetColor(MakeGDIPColor(clWhite));
+              end;
               //graph.FillEllipse(brush,MakeRect(Width-5-9-1,5,9,9));
               graph.FillEllipse(brush,MakeRect(Width-5-(h-10)-1,5,h-10,h-10));
             end
             else
             begin
+              if isWindows11 and SystemUsesLightTheme then
+              begin
+                brush.SetColor(MakeGDIPColor(($575757)));
+                pen.SetColor(MakeGDIPColor(($575757)));
+              end;
               if _mousepressed then
               begin
                 brush.SetColor(MakeGDIPColor(_pressedColor));
