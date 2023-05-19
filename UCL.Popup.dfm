@@ -2,8 +2,8 @@ object FormPopup: TFormPopup
   Left = 0
   Top = 0
   BorderStyle = bsSingle
-  ClientHeight = 503
-  ClientWidth = 500
+  ClientHeight = 502
+  ClientWidth = 496
   Color = clBtnFace
   DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
@@ -17,20 +17,18 @@ object FormPopup: TFormPopup
   Padding.Top = 1
   Padding.Right = 1
   Padding.Bottom = 1
-  OldCreateOrder = False
   Visible = True
   OnActivate = FormActivate
   OnClick = FormClick
   OnClose = FormClose
   OnHide = FormHide
   OnShow = FormShow
-  PixelsPerInch = 96
   TextHeight = 13
   object Shape1: TShape
     Left = 1
     Top = 1
-    Width = 498
-    Height = 501
+    Width = 494
+    Height = 500
     Align = alClient
     Brush.Color = 1907997
     Pen.Color = 1907997
