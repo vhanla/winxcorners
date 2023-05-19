@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
-  Vcl.ExtCtrls, Vcl.Imaging.pngimage, UCL.Form, DWMAPI, UCL.ThemeManager,
+  Vcl.ExtCtrls, Vcl.Imaging.pngimage, UWP.Form, DWMAPI, UWP.ColorManager,
   Winapi.UXTheme;
 
 type
@@ -17,7 +17,7 @@ type
 
   TFreeMethod = TProc<TFormPopup>;
 
-  TFormPopup = class(TUForm)
+  TFormPopup = class(TForm)
 
     Shape1: TShape;
 
@@ -44,6 +44,8 @@ implementation
 
 {$R *.dfm}
 
+uses functions;
+
 { TFormPopup }
 
 procedure TFormPopup.DoRelease;
@@ -63,6 +65,7 @@ begin
   margs.cyTopHeight := 1;
   if DwmCompositionEnabled then
     DwmExtendFrameIntoClientArea(Handle, margs);
+  EnableBlur(Handle);
 
 //  ThemeManager.ThemeType := TUThemeType.ttDark;
   FClosing := False;
