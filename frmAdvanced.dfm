@@ -1,59 +1,31 @@
 object frmAdvSettings: TfrmAdvSettings
   Left = 0
   Top = 0
+  AlphaBlend = True
+  AlphaBlendValue = 250
   Caption = 'WinXCorners - Advanced Options'
-  ClientHeight = 476
-  ClientWidth = 656
+  ClientHeight = 590
+  ClientWidth = 754
   Color = clWhite
-  Font.Charset = DEFAULT_CHARSET
+  Font.Charset = ANSI_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'Tahoma'
+  Font.Name = 'Segoe UI'
   Font.Style = []
-  OldCreateOrder = False
+  Font.Quality = fqClearTypeNatural
+  StyleElements = [seFont, seClient]
   OnCreate = FormCreate
-  PixelsPerInch = 96
   TextHeight = 13
-  object UCaptionBar1: TUCaptionBar
-    Left = 0
-    Top = 0
-    Width = 656
-    Caption = '   WinXCorners - Advanced Options'
-    Color = 15921906
-    TabOrder = 0
-    CustomBackColor.Enabled = False
-    CustomBackColor.Color = 15921906
-    CustomBackColor.LightColor = 15921906
-    CustomBackColor.DarkColor = 2829099
-    object UQuickButton1: TUQuickButton
-      Left = 611
-      Top = 0
-      Align = alRight
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -13
-      Font.Name = 'Segoe MDL2 Assets'
-      Font.Style = []
-      ParentFont = False
-      CustomBackColor.Enabled = False
-      CustomBackColor.Color = clBlack
-      CustomBackColor.LightColor = 13619151
-      CustomBackColor.DarkColor = 3947580
-      ButtonStyle = qbsQuit
-      Caption = #57610
-      ExplicitLeft = 292
-      ExplicitTop = 14
-    end
-  end
   object SplitView1: TSplitView
     Left = 0
-    Top = 32
+    Top = 0
     Width = 200
-    Height = 444
+    Height = 590
+    Color = clWindow
     OpenedWidth = 200
     Placement = svpLeft
-    TabOrder = 1
-    object UListButton1: TUListButton
+    TabOrder = 0
+    object ulbtnSettings: TUWPListButton
       Left = 0
       Top = 0
       Width = 200
@@ -61,7 +33,7 @@ object frmAdvSettings: TfrmAdvSettings
       Align = alTop
       Caption = 'Settings'
       TabOrder = 0
-      OnClick = UListButton1Click
+      OnClick = ulbtnSettingsClick
       IconFont.Charset = DEFAULT_CHARSET
       IconFont.Color = clWindowText
       IconFont.Height = -16
@@ -84,15 +56,15 @@ object frmAdvSettings: TfrmAdvSettings
       Detail = ''
       SelectMode = smSelect
     end
-    object UListButton2: TUListButton
+    object ulbtnAbout: TUWPListButton
       Left = 0
-      Top = 403
+      Top = 549
       Width = 200
       Height = 41
       Align = alBottom
       Caption = 'About'
       TabOrder = 1
-      OnClick = UListButton2Click
+      OnClick = ulbtnAboutClick
       IconFont.Charset = DEFAULT_CHARSET
       IconFont.Color = clWindowText
       IconFont.Height = -16
@@ -115,7 +87,7 @@ object frmAdvSettings: TfrmAdvSettings
       Detail = ''
       SelectMode = smSelect
     end
-    object UListButton3: TUListButton
+    object ulbtnAdvanced: TUWPListButton
       Left = 0
       Top = 41
       Width = 200
@@ -123,6 +95,38 @@ object frmAdvSettings: TfrmAdvSettings
       Align = alTop
       Caption = 'Advanced'
       TabOrder = 2
+      OnClick = ulbtnAdvancedClick
+      IconFont.Charset = DEFAULT_CHARSET
+      IconFont.Color = clWindowText
+      IconFont.Height = -16
+      IconFont.Name = 'Segoe MDL2 Assets'
+      IconFont.Style = []
+      CustomBackColor.Enabled = False
+      CustomBackColor.LightNone = 15132390
+      CustomBackColor.LightHover = 13619151
+      CustomBackColor.LightPress = 12105912
+      CustomBackColor.LightSelectedNone = 127
+      CustomBackColor.LightSelectedHover = 103
+      CustomBackColor.LightSelectedPress = 89
+      CustomBackColor.DarkNone = 2039583
+      CustomBackColor.DarkHover = 3487029
+      CustomBackColor.DarkPress = 5000268
+      CustomBackColor.DarkSelectedNone = 89
+      CustomBackColor.DarkSelectedHover = 103
+      CustomBackColor.DarkSelectedPress = 127
+      FontIcon = #61272
+      Detail = ''
+      SelectMode = smSelect
+    end
+    object ulbActions: TUWPListButton
+      Left = 0
+      Top = 82
+      Width = 200
+      Height = 41
+      Align = alTop
+      Caption = 'Actions'
+      TabOrder = 3
+      OnClick = ulbActionsClick
       IconFont.Charset = DEFAULT_CHARSET
       IconFont.Color = clWindowText
       IconFont.Height = -16
@@ -146,14 +150,14 @@ object frmAdvSettings: TfrmAdvSettings
       SelectMode = smSelect
     end
   end
-  object pnlContent: TUPanel
+  object pnlContent: TUWPPanel
     Left = 200
-    Top = 32
-    Width = 456
-    Height = 444
+    Top = 0
+    Width = 554
+    Height = 590
     Align = alClient
     Color = 15132390
-    TabOrder = 2
+    TabOrder = 1
     CustomBackColor.Enabled = False
     CustomBackColor.Color = 15132390
     CustomBackColor.LightColor = 15132390
@@ -161,275 +165,29 @@ object frmAdvSettings: TfrmAdvSettings
     object CardPanel1: TCardPanel
       Left = 0
       Top = 0
-      Width = 456
-      Height = 402
+      Width = 554
+      Height = 548
       Align = alClient
-      ActiveCard = crdAbout
+      ActiveCard = crdActions
       BevelOuter = bvNone
       Caption = 'CardPanel1'
+      Color = clWindow
+      ParentBackground = False
       TabOrder = 0
-      object crdSettings: TCard
-        Left = 0
-        Top = 0
-        Width = 456
-        Height = 402
-        Caption = 'crdSettings'
-        CardIndex = 0
-        TabOrder = 0
-        object UScrollBox1: TUScrollBox
-          Left = 0
-          Top = 0
-          Width = 456
-          Height = 402
-          HorzScrollBar.Tracking = True
-          VertScrollBar.Tracking = True
-          Align = alClient
-          Color = clWhite
-          ParentColor = False
-          TabOrder = 0
-          AniSet.AniKind = akOut
-          AniSet.AniFunctionKind = afkQuintic
-          AniSet.DelayStartTime = 0
-          AniSet.Duration = 120
-          AniSet.Step = 11
-          CustomBackColor.Enabled = True
-          CustomBackColor.Color = clWhite
-          CustomBackColor.LightColor = clWhite
-          CustomBackColor.DarkColor = 2039583
-          object StackPanel1: TStackPanel
-            Left = 0
-            Top = 0
-            Width = 456
-            Height = 402
-            Align = alClient
-            BevelOuter = bvNone
-            ControlCollection = <
-              item
-                Control = GroupBox1
-                HorizontalPositioning = sphpFill
-                VerticalPositioning = spvpFill
-              end
-              item
-                Control = GroupBox3
-                HorizontalPositioning = sphpFill
-                VerticalPositioning = spvpFill
-              end
-              item
-                Control = GroupBox2
-                HorizontalPositioning = sphpFill
-                VerticalPositioning = spvpFill
-              end>
-            Padding.Left = 12
-            Padding.Top = 12
-            Padding.Right = 12
-            Padding.Bottom = 12
-            TabOrder = 1
-            object GroupBox1: TGroupBox
-              Left = 12
-              Top = 12
-              Width = 432
-              Height = 158
-              Align = alClient
-              Caption = 
-                'Delayed response (delay unit 300ms, i.e. 3 = 900ms almost a seco' +
-                'nd)'
-              TabOrder = 0
-              object chkDelayGlobal: TCheckBox
-                Left = 16
-                Top = 24
-                Width = 97
-                Height = 17
-                Caption = 'Global Delay'
-                TabOrder = 0
-                OnClick = chkDelayGlobalClick
-              end
-              object valDelayGlobal: TSpinEdit
-                Left = 112
-                Top = 22
-                Width = 41
-                Height = 22
-                MaxValue = 10
-                MinValue = 1
-                TabOrder = 1
-                Value = 1
-              end
-              object chkDelayTopLeft: TCheckBox
-                Left = 56
-                Top = 64
-                Width = 97
-                Height = 17
-                Caption = 'Top Left Delay'
-                TabOrder = 2
-              end
-              object valDelayTopLeft: TSpinEdit
-                Left = 152
-                Top = 62
-                Width = 33
-                Height = 22
-                MaxValue = 10
-                MinValue = 1
-                TabOrder = 3
-                Value = 1
-              end
-              object chkDelayTopRight: TCheckBox
-                Left = 224
-                Top = 64
-                Width = 97
-                Height = 17
-                Caption = 'Top Right Delay'
-                TabOrder = 4
-              end
-              object valDelayTopRight: TSpinEdit
-                Left = 320
-                Top = 65
-                Width = 33
-                Height = 22
-                MaxValue = 10
-                MinValue = 1
-                TabOrder = 5
-                Value = 1
-              end
-              object chkDelayBotLeft: TCheckBox
-                Left = 56
-                Top = 93
-                Width = 97
-                Height = 17
-                Caption = 'Bot Left Delay'
-                TabOrder = 6
-              end
-              object valDelayBotLeft: TSpinEdit
-                Left = 152
-                Top = 91
-                Width = 33
-                Height = 22
-                MaxValue = 10
-                MinValue = 1
-                TabOrder = 7
-                Value = 1
-              end
-              object chkDelayBotRight: TCheckBox
-                Left = 224
-                Top = 93
-                Width = 97
-                Height = 17
-                Caption = 'Bot Right Delay'
-                TabOrder = 8
-              end
-              object valDelayBotRight: TSpinEdit
-                Left = 320
-                Top = 91
-                Width = 33
-                Height = 22
-                MaxValue = 10
-                MinValue = 1
-                TabOrder = 9
-                Value = 1
-              end
-              object chkShowCount: TCheckBox
-                Left = 16
-                Top = 128
-                Width = 123
-                Height = 17
-                Caption = 'Show Countdown'
-                TabOrder = 10
-              end
-            end
-            object GroupBox3: TGroupBox
-              Left = 12
-              Top = 172
-              Width = 432
-              Height = 73
-              Align = alClient
-              Caption = 'Global Hotkey'
-              TabOrder = 2
-              object Label6: TLabel
-                Left = 16
-                Top = 32
-                Width = 169
-                Height = 13
-                Caption = 'You can disable/enable hotcorners:'
-              end
-              object HotKey1: THotKey
-                Left = 202
-                Top = 32
-                Width = 184
-                Height = 19
-                HotKey = 32833
-                TabOrder = 0
-              end
-            end
-            object GroupBox2: TGroupBox
-              Left = 12
-              Top = 247
-              Width = 432
-              Height = 145
-              Align = alClient
-              Caption = 'Custom Command (Launcher)'
-              TabOrder = 1
-              object Label3: TLabel
-                Left = 16
-                Top = 24
-                Width = 370
-                Height = 13
-                Caption = 
-                  'Write a custom command (executable path + parameters): e.g. note' +
-                  'pad.exe'
-              end
-              object Label1: TLabel
-                Left = 16
-                Top = 70
-                Width = 104
-                Height = 13
-                Caption = 'Parameters (optional)'
-              end
-              object edCommand: TEdit
-                Left = 18
-                Top = 43
-                Width = 368
-                Height = 21
-                TabOrder = 0
-              end
-              object chkCustom: TCheckBox
-                Left = 16
-                Top = 116
-                Width = 209
-                Height = 17
-                Caption = 'Enable Custom Command'
-                TabOrder = 2
-              end
-              object chkHidden: TCheckBox
-                Left = 289
-                Top = 116
-                Width = 97
-                Height = 17
-                Caption = 'Launch Hidden'
-                TabOrder = 3
-              end
-              object edParams: TEdit
-                Left = 18
-                Top = 89
-                Width = 368
-                Height = 21
-                TabOrder = 1
-              end
-            end
-          end
-        end
-      end
       object crdAbout: TCard
         Left = 0
         Top = 0
-        Width = 456
-        Height = 402
+        Width = 554
+        Height = 548
         Caption = 'crdAbout'
-        CardIndex = 1
+        CardIndex = 0
         Color = clWhite
         ParentBackground = False
-        TabOrder = 1
+        TabOrder = 0
         object Label5: TLabel
           Left = 16
           Top = 417
-          Width = 88
+          Width = 93
           Height = 13
           Cursor = crHandPoint
           Caption = 'Check for updates'
@@ -439,6 +197,7 @@ object frmAdvSettings: TfrmAdvSettings
           Font.Height = -11
           Font.Name = 'Tahoma'
           Font.Style = []
+          Font.Quality = fqClearTypeNatural
           ParentColor = False
           ParentFont = False
           OnClick = Label5Click
@@ -446,7 +205,7 @@ object frmAdvSettings: TfrmAdvSettings
         object Label4: TLabel
           Left = 5
           Top = 401
-          Width = 81
+          Width = 87
           Height = 13
           Cursor = crHandPoint
           Caption = 'Support my work'
@@ -455,13 +214,14 @@ object frmAdvSettings: TfrmAdvSettings
           Font.Height = -11
           Font.Name = 'Tahoma'
           Font.Style = []
+          Font.Quality = fqClearTypeNatural
           ParentFont = False
           OnClick = Label4Click
         end
         object Label2: TLabel
           Left = 128
           Top = 405
-          Width = 106
+          Width = 111
           Height = 13
           Caption = 'Beta build (20170602)'
           Color = clWhite
@@ -470,6 +230,7 @@ object frmAdvSettings: TfrmAdvSettings
           Font.Height = -11
           Font.Name = 'Tahoma'
           Font.Style = []
+          Font.Quality = fqClearTypeNatural
           ParentColor = False
           ParentFont = False
         end
@@ -2409,85 +2170,391 @@ object frmAdvSettings: TfrmAdvSettings
             6082}
         end
       end
+      object crdAdvanced: TCard
+        Left = 0
+        Top = 0
+        Width = 554
+        Height = 548
+        Caption = 'crdAdvanced'
+        CardIndex = 1
+        Color = clWhite
+        ParentBackground = False
+        TabOrder = 1
+        object EsSwitch1: TEsSwitch
+          Left = 40
+          Top = 36
+          Width = 224
+          Height = 20
+          TextOn = 'Ignore on normal desktop fullscren'
+          TextOff = 'Ignore on normal desktop fullscren'
+          ShowCaption = True
+          TabOrder = 0
+        end
+        object EsSwitch2: TEsSwitch
+          Left = 40
+          Top = 62
+          Width = 401
+          Height = 20
+          TextOn = 
+            'Ignore on fullscreen  DirectX apps like games (might work on Ope' +
+            'nGL)'
+          TextOff = 
+            'Ignore on fullscreen  DirectX apps like games (might work on Ope' +
+            'nGL)'
+          ShowCaption = True
+          TabOrder = 1
+        end
+        object EsSwitch3: TEsSwitch
+          Left = 40
+          Top = 88
+          Width = 396
+          Height = 20
+          TextOn = 
+            'Ctrl + Alt + Tab to Show All Windows (otherwise it will use Task' +
+            ' View)'
+          TextOff = 
+            'Ctrl + Alt + Tab to Show All Windows (otherwise it will use Task' +
+            ' View)'
+          ShowCaption = True
+          TabOrder = 2
+        end
+      end
+      object crdActions: TCard
+        Left = 0
+        Top = 0
+        Width = 554
+        Height = 548
+        Caption = 'Actions'
+        CardIndex = 2
+        TabOrder = 2
+        ExplicitHeight = 353
+        object VirtualStringTree1: TVirtualStringTree
+          Left = 0
+          Top = 0
+          Width = 554
+          Height = 328
+          Align = alClient
+          Colors.BorderColor = 4732468
+          Colors.DisabledColor = clGray
+          Colors.DropMarkColor = 11100680
+          Colors.DropTargetColor = 11100680
+          Colors.DropTargetBorderColor = 11100680
+          Colors.FocusedSelectionColor = 11100680
+          Colors.FocusedSelectionBorderColor = 11100680
+          Colors.GridLineColor = 4732468
+          Colors.HeaderHotColor = clWhite
+          Colors.HotColor = clWhite
+          Colors.SelectionRectangleBlendColor = 11100680
+          Colors.SelectionRectangleBorderColor = 11100680
+          Colors.SelectionTextColor = clWhite
+          Colors.TreeLineColor = 9471874
+          Colors.UnfocusedColor = 10657695
+          Colors.UnfocusedSelectionColor = 4075309
+          Colors.UnfocusedSelectionBorderColor = 4075309
+          Header.AutoSizeIndex = 0
+          Header.Options = [hoColumnResize, hoDrag, hoShowSortGlyphs, hoVisible]
+          TabOrder = 0
+          Touch.InteractiveGestures = [igPan, igPressAndTap]
+          Touch.InteractiveGestureOptions = [igoPanSingleFingerHorizontal, igoPanSingleFingerVertical, igoPanInertia, igoPanGutter, igoParentPassthrough]
+          Columns = <
+            item
+              Position = 0
+            end
+            item
+              Position = 1
+            end
+            item
+              Position = 2
+            end>
+        end
+        object GroupBox2: TGroupBox
+          Left = 0
+          Top = 328
+          Width = 554
+          Height = 220
+          Align = alBottom
+          Caption = 'Custom Command (Launcher)'
+          TabOrder = 1
+          object Label3: TLabel
+            Left = 16
+            Top = 24
+            Width = 378
+            Height = 13
+            Caption = 
+              'Write a custom command (executable path + parameters): e.g. note' +
+              'pad.exe'
+          end
+          object Label1: TLabel
+            Left = 16
+            Top = 70
+            Width = 109
+            Height = 13
+            Caption = 'Parameters (optional)'
+          end
+          object edCommand: TEdit
+            Left = 18
+            Top = 43
+            Width = 368
+            Height = 21
+            TabOrder = 0
+          end
+          object chkCustom: TCheckBox
+            Left = 16
+            Top = 116
+            Width = 209
+            Height = 17
+            Caption = 'Enable Custom Command'
+            TabOrder = 2
+          end
+          object chkHidden: TCheckBox
+            Left = 289
+            Top = 116
+            Width = 97
+            Height = 17
+            Caption = 'Launch Hidden'
+            TabOrder = 3
+          end
+          object edParams: TEdit
+            Left = 18
+            Top = 89
+            Width = 368
+            Height = 21
+            TabOrder = 1
+          end
+        end
+      end
+      object crdSettings: TCard
+        Left = 0
+        Top = 0
+        Width = 554
+        Height = 548
+        Caption = 'crdSettings'
+        CardIndex = 3
+        TabOrder = 3
+        object StackPanel1: TStackPanel
+          Left = 0
+          Top = 0
+          Width = 554
+          Height = 548
+          Align = alClient
+          BevelOuter = bvNone
+          ControlCollection = <
+            item
+              Control = GroupBox1
+              HorizontalPositioning = sphpFill
+              VerticalPositioning = spvpFill
+            end
+            item
+              Control = GroupBox3
+              HorizontalPositioning = sphpFill
+              VerticalPositioning = spvpFill
+            end
+            item
+              Control = gbLanguage
+            end>
+          Padding.Left = 12
+          Padding.Top = 12
+          Padding.Right = 12
+          Padding.Bottom = 12
+          TabOrder = 0
+          object GroupBox1: TGroupBox
+            Left = 12
+            Top = 12
+            Width = 530
+            Height = 158
+            Align = alClient
+            Caption = 
+              'Delayed response (delay unit 300ms, i.e. 3 = 900ms almost a seco' +
+              'nd)'
+            TabOrder = 0
+            object chkDelayGlobal: TCheckBox
+              Left = 16
+              Top = 24
+              Width = 97
+              Height = 17
+              Caption = 'Global Delay'
+              TabOrder = 0
+              OnClick = chkDelayGlobalClick
+            end
+            object valDelayGlobal: TSpinEdit
+              Left = 112
+              Top = 22
+              Width = 41
+              Height = 22
+              MaxValue = 10
+              MinValue = 1
+              TabOrder = 1
+              Value = 1
+            end
+            object chkDelayTopLeft: TCheckBox
+              Left = 56
+              Top = 64
+              Width = 97
+              Height = 17
+              Caption = 'Top Left Delay'
+              TabOrder = 2
+            end
+            object valDelayTopLeft: TSpinEdit
+              Left = 152
+              Top = 62
+              Width = 33
+              Height = 22
+              MaxValue = 10
+              MinValue = 1
+              TabOrder = 3
+              Value = 1
+            end
+            object chkDelayTopRight: TCheckBox
+              Left = 224
+              Top = 64
+              Width = 97
+              Height = 17
+              Caption = 'Top Right Delay'
+              TabOrder = 4
+            end
+            object valDelayTopRight: TSpinEdit
+              Left = 320
+              Top = 65
+              Width = 33
+              Height = 22
+              MaxValue = 10
+              MinValue = 1
+              TabOrder = 5
+              Value = 1
+            end
+            object chkDelayBotLeft: TCheckBox
+              Left = 56
+              Top = 93
+              Width = 97
+              Height = 17
+              Caption = 'Bot Left Delay'
+              TabOrder = 6
+            end
+            object valDelayBotLeft: TSpinEdit
+              Left = 152
+              Top = 91
+              Width = 33
+              Height = 22
+              MaxValue = 10
+              MinValue = 1
+              TabOrder = 7
+              Value = 1
+            end
+            object chkDelayBotRight: TCheckBox
+              Left = 224
+              Top = 93
+              Width = 97
+              Height = 17
+              Caption = 'Bot Right Delay'
+              TabOrder = 8
+            end
+            object valDelayBotRight: TSpinEdit
+              Left = 320
+              Top = 91
+              Width = 33
+              Height = 22
+              MaxValue = 10
+              MinValue = 1
+              TabOrder = 9
+              Value = 1
+            end
+            object chkShowCount: TCheckBox
+              Left = 16
+              Top = 128
+              Width = 123
+              Height = 17
+              Caption = 'Show Countdown'
+              TabOrder = 10
+            end
+          end
+          object GroupBox3: TGroupBox
+            Left = 12
+            Top = 172
+            Width = 530
+            Height = 73
+            Align = alClient
+            Caption = 'Global Hotkey'
+            TabOrder = 1
+            object Label6: TLabel
+              Left = 16
+              Top = 32
+              Width = 175
+              Height = 13
+              Caption = 'You can disable/enable hotcorners:'
+            end
+            object HotKey1: THotKey
+              Left = 202
+              Top = 32
+              Width = 184
+              Height = 19
+              HotKey = 32833
+              TabOrder = 0
+            end
+          end
+          object gbLanguage: TGroupBox
+            Left = 12
+            Top = 247
+            Width = 531
+            Height = 87
+            Caption = 'Language'
+            TabOrder = 2
+            object ComboBox1: TComboBox
+              Left = 18
+              Top = 32
+              Width = 351
+              Height = 21
+              TabOrder = 0
+              Text = 'English'
+              OnChange = ComboBox1Change
+              Items.Strings = (
+                'English'
+                'Spanish'
+                'German'
+                'Portuguese'
+                'French'
+                'Italian'
+                'Japanese'
+                'Chinese'
+                'Russian'
+                'Hindi'
+                'Korean')
+            end
+          end
+        end
+      end
     end
     object Panel1: TPanel
       Left = 0
-      Top = 402
-      Width = 456
+      Top = 548
+      Width = 554
       Height = 42
       Align = alBottom
       BevelOuter = bvNone
+      Color = clWindow
+      ParentBackground = False
       TabOrder = 1
       DesignSize = (
-        456
+        554
         42)
-      object UButton1: TUButton
-        Left = 231
-        Top = 8
-        Width = 97
+      object btnAdvApply: TButton
+        Left = 377
+        Top = 6
+        Width = 75
+        Height = 25
         Anchors = [akRight, akBottom]
-        Caption = '&OK'
-        OnClick = UButton1Click
-        CustomBackColor.Enabled = False
-        CustomBackColor.LightNone = 13421772
-        CustomBackColor.LightHover = 13421772
-        CustomBackColor.LightPress = 10066329
-        CustomBackColor.LightSelectedNone = 13421772
-        CustomBackColor.LightSelectedHover = 13421772
-        CustomBackColor.LightSelectedPress = 10066329
-        CustomBackColor.DarkNone = 3355443
-        CustomBackColor.DarkHover = 3355443
-        CustomBackColor.DarkPress = 6710886
-        CustomBackColor.DarkSelectedNone = 3355443
-        CustomBackColor.DarkSelectedHover = 3355443
-        CustomBackColor.DarkSelectedPress = 6710886
-        CustomBorderColor.Enabled = False
-        CustomBorderColor.LightNone = 13421772
-        CustomBorderColor.LightHover = 8026746
-        CustomBorderColor.LightPress = 10066329
-        CustomBorderColor.LightSelectedNone = 8026746
-        CustomBorderColor.LightSelectedHover = 8026746
-        CustomBorderColor.LightSelectedPress = 10066329
-        CustomBorderColor.DarkNone = 3355443
-        CustomBorderColor.DarkHover = 8750469
-        CustomBorderColor.DarkPress = 6710886
-        CustomBorderColor.DarkSelectedNone = 8750469
-        CustomBorderColor.DarkSelectedHover = 8750469
-        CustomBorderColor.DarkSelectedPress = 6710886
+        Caption = 'OK'
+        TabOrder = 0
+        OnClick = btnAdvApplyClick
       end
-      object UButton2: TUButton
-        Left = 334
-        Top = 8
-        Width = 99
+      object btnAdvCancel: TButton
+        Left = 458
+        Top = 6
+        Width = 75
+        Height = 25
         Anchors = [akRight, akBottom]
         Caption = '&Cancel'
-        OnClick = UButton2Click
-        CustomBackColor.Enabled = False
-        CustomBackColor.LightNone = 13421772
-        CustomBackColor.LightHover = 13421772
-        CustomBackColor.LightPress = 10066329
-        CustomBackColor.LightSelectedNone = 13421772
-        CustomBackColor.LightSelectedHover = 13421772
-        CustomBackColor.LightSelectedPress = 10066329
-        CustomBackColor.DarkNone = 3355443
-        CustomBackColor.DarkHover = 3355443
-        CustomBackColor.DarkPress = 6710886
-        CustomBackColor.DarkSelectedNone = 3355443
-        CustomBackColor.DarkSelectedHover = 3355443
-        CustomBackColor.DarkSelectedPress = 6710886
-        CustomBorderColor.Enabled = False
-        CustomBorderColor.LightNone = 13421772
-        CustomBorderColor.LightHover = 8026746
-        CustomBorderColor.LightPress = 10066329
-        CustomBorderColor.LightSelectedNone = 8026746
-        CustomBorderColor.LightSelectedHover = 8026746
-        CustomBorderColor.LightSelectedPress = 10066329
-        CustomBorderColor.DarkNone = 3355443
-        CustomBorderColor.DarkHover = 8750469
-        CustomBorderColor.DarkPress = 6710886
-        CustomBorderColor.DarkSelectedNone = 8750469
-        CustomBorderColor.DarkSelectedHover = 8750469
-        CustomBorderColor.DarkSelectedPress = 6710886
+        TabOrder = 1
+        OnClick = btnAdvCancelClick
       end
     end
   end

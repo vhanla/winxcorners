@@ -6,16 +6,17 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Samples.Spin,
   Vcl.ExtCtrls, ShellApi, IniFiles, IPPeerClient, Data.Bind.Components,
-  Data.Bind.ObjectScope, REST.Client, Vcl.ComCtrls, UCL.Form, UCL.Classes,
-  UCL.QuickButton, UCL.CaptionBar, UCL.Button, Vcl.WinXPanels, Vcl.WinXCtrls,
-  UCL.ListButton, UCL.ScrollBox, UCL.Panel, Vcl.Imaging.pngimage
+  Data.Bind.ObjectScope, REST.Client, Vcl.ComCtrls, UWP.Form, UWP.Classes,
+  UWP.QuickButton, UWP.Caption, UWP.Button, Vcl.WinXPanels, Vcl.WinXCtrls,
+  UWP.ListButton, UWP.ScrollBox, UWP.Panel, Vcl.Imaging.pngimage,
+  ES.BaseControls, ES.Switch, scStyledForm, VirtualTrees
   {, REST.Client, JSon};
 
 const
   VERSION = '1.2';
 
 type
-  TfrmAdvSettings = class(TUForm)
+  TfrmAdvSettings = class(TForm)
     GroupBox1: TGroupBox;
     chkDelayGlobal: TCheckBox;
     valDelayGlobal: TSpinEdit;
@@ -29,42 +30,51 @@ type
     valDelayBotRight: TSpinEdit;
     Label2: TLabel;
     chkShowCount: TCheckBox;
-    GroupBox2: TGroupBox;
-    Label3: TLabel;
-    edCommand: TEdit;
-    chkCustom: TCheckBox;
     Label4: TLabel;
-    chkHidden: TCheckBox;
-    edParams: TEdit;
-    Label1: TLabel;
     Label5: TLabel;
     GroupBox3: TGroupBox;
     HotKey1: THotKey;
     Label6: TLabel;
-    UCaptionBar1: TUCaptionBar;
-    UQuickButton1: TUQuickButton;
-    UButton1: TUButton;
-    UButton2: TUButton;
     SplitView1: TSplitView;
     CardPanel1: TCardPanel;
     crdSettings: TCard;
     crdAbout: TCard;
-    UListButton1: TUListButton;
-    UListButton2: TUListButton;
-    UScrollBox1: TUScrollBox;
+    ulbtnSettings: TUWPListButton;
+    ulbtnAbout: TUWPListButton;
     StackPanel1: TStackPanel;
     Panel1: TPanel;
-    UListButton3: TUListButton;
-    pnlContent: TUPanel;
+    ulbtnAdvanced: TUWPListButton;
+    pnlContent: TUWPPanel;
     Image1: TImage;
+    crdAdvanced: TCard;
+    EsSwitch1: TEsSwitch;
+    EsSwitch2: TEsSwitch;
+    EsSwitch3: TEsSwitch;
+    btnAdvApply: TButton;
+    btnAdvCancel: TButton;
+    ulbActions: TUWPListButton;
+    crdActions: TCard;
+    gbLanguage: TGroupBox;
+    ComboBox1: TComboBox;
+    VirtualStringTree1: TVirtualStringTree;
+    GroupBox2: TGroupBox;
+    Label3: TLabel;
+    Label1: TLabel;
+    edCommand: TEdit;
+    chkCustom: TCheckBox;
+    chkHidden: TCheckBox;
+    edParams: TEdit;
     procedure FormCreate(Sender: TObject);
     procedure Label4Click(Sender: TObject);
     procedure chkDelayGlobalClick(Sender: TObject);
     procedure Label5Click(Sender: TObject);
-    procedure UButton1Click(Sender: TObject);
-    procedure UButton2Click(Sender: TObject);
-    procedure UListButton1Click(Sender: TObject);
-    procedure UListButton2Click(Sender: TObject);
+    procedure ulbtnSettingsClick(Sender: TObject);
+    procedure ulbtnAboutClick(Sender: TObject);
+    procedure ulbtnAdvancedClick(Sender: TObject);
+    procedure btnAdvApplyClick(Sender: TObject);
+    procedure btnAdvCancelClick(Sender: TObject);
+    procedure ulbActionsClick(Sender: TObject);
+    procedure ComboBox1Change(Sender: TObject);
   private
     { Private declarations }
   public
@@ -80,7 +90,20 @@ implementation
 
 {$R *.dfm}
 
-uses frmSettings;
+uses frmSettings, functions;
+
+procedure TfrmAdvSettings.btnAdvApplyClick(Sender: TObject);
+begin
+  SaveAdvancedIni;
+  Close
+
+end;
+
+procedure TfrmAdvSettings.btnAdvCancelClick(Sender: TObject);
+begin
+  ReadAdvancedIni;
+  close
+end;
 
 procedure TfrmAdvSettings.chkDelayGlobalClick(Sender: TObject);
 begin
@@ -111,11 +134,22 @@ begin
 
 end;
 
+procedure TfrmAdvSettings.ComboBox1Change(Sender: TObject);
+var
+  res: LongInt;
+begin
+  Exit; //fails
+  res := LoadNewResourceModule(LANG_JAPANESE);
+  if res <> NO_ERROR then
+    ReinitializeForms;
+
+end;
+
 procedure TfrmAdvSettings.FormCreate(Sender: TObject);
 begin
   FormStyle := fsStayOnTop;
-  BorderStyle := bsSingle;
-  BorderIcons := [biSystemMenu, biMinimize];
+//  BorderStyle := bsSingle;
+//  BorderIcons := [biSystemMenu, biMinimize];
   Position := poScreenCenter;
   valDelayGlobal.Enabled := False;
   ReadAdvancedIni;
@@ -171,7 +205,9 @@ begin
     chkShowCount.Checked := ini.ReadBool('Advanced', 'ShowCountDown', False);
 
     chkCustom.Checked := ini.ReadBool('Advanced', 'CustomCommand', False);
-    frmTrayPopup.XPopupMenu.Items[5].Visible := chkCustom.Checked;
+    {frmTrayPopup.XPopupMenu.Items[5].Visible := chkCustom.Checked;
+    frmTrayPopup.UpdateXCombos;}
+    frmTrayPopup.ulbCustomCommand.Visible := chkCustom.Checked;
     frmTrayPopup.UpdateXCombos;
     edCommand.Text := ini.ReadString('Advanced', 'CustomCommandline', '');
     edParams.Text := ini.ReadString('Advanced', 'CustomCommandparms', '');
@@ -202,7 +238,9 @@ begin
     ini.WriteBool('Advanced', 'ShowCountDown', chkShowCount.Checked);
 
     ini.WriteBool('Advanced', 'CustomCommand', chkCustom.Checked);
-    frmTrayPopup.XPopupMenu.Items[5].Visible := chkCustom.Checked;
+    {frmTrayPopup.XPopupMenu.Items[5].Visible := chkCustom.Checked;
+    frmTrayPopup.UpdateXCombos;}
+    frmTrayPopup.ulbCustomCommand.Visible := chkCustom.Checked;
     frmTrayPopup.UpdateXCombos;
     ini.WriteString('Advanced', 'CustomCommandline', edCommand.Text);
     ini.WriteString('Advanced', 'CustomCommandparms', edParams.Text);
@@ -212,26 +250,24 @@ begin
   end;
 end;
 
-procedure TfrmAdvSettings.UButton1Click(Sender: TObject);
-begin
-  SaveAdvancedIni;
-  Close
-end;
-
-procedure TfrmAdvSettings.UButton2Click(Sender: TObject);
-begin
-  ReadAdvancedIni;
-  close
-end;
-
-procedure TfrmAdvSettings.UListButton1Click(Sender: TObject);
+procedure TfrmAdvSettings.ulbtnSettingsClick(Sender: TObject);
 begin
   CardPanel1.ActiveCard := crdSettings;
 end;
 
-procedure TfrmAdvSettings.UListButton2Click(Sender: TObject);
+procedure TfrmAdvSettings.ulbActionsClick(Sender: TObject);
+begin
+  CardPanel1.ActiveCard := crdActions;
+end;
+
+procedure TfrmAdvSettings.ulbtnAboutClick(Sender: TObject);
 begin
   CardPanel1.ActiveCard := crdAbout;
+end;
+
+procedure TfrmAdvSettings.ulbtnAdvancedClick(Sender: TObject);
+begin
+  CardPanel1.ActiveCard := crdAdvanced;
 end;
 
 end.
