@@ -1,5 +1,15 @@
 {
 Changelog:
+- 23-05-07
+  Added partial HiDPI support
+- 21-04-22
+  Switched to UWP component
+- 20-09-08
+  Replaced XPopupMenu(XMenu) with newer custom UCL.Popup
+- 20-09-01
+  Replaced OnShow animation with AnyiQuack
+- 20-08-14
+  Replaced popup menu with UCL.Popup, simpler
 - 19-06-10
   Fixed window resize on screen resolution change
   using WM_DISPLAYCHANGE event
@@ -44,7 +54,9 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
-  XMenu, XGraphics, PNGimage, GDIPApi, GDIPObj,  XCheckbox ,XCombobox , Registry, IniFiles, DateUtils, AnimateEasing, Math;
+  {XMenu,} XGraphics, PNGimage, GDIPApi, GDIPObj,  XCheckbox ,XCombobox ,
+  Registry, IniFiles, DateUtils, AnimateEasing, Math, UCL.Popup, UWP.ListButton,
+  UWP.Form, UWP.ColorManager;
 
 type
   TFadeType = (ftIn, ftOut);
@@ -52,11 +64,18 @@ type
   TfrmTrayPopup = class(TForm)
     imgScreenShape: TImage;
     Label1: TLabel;
-    Timer1: TTimer;
-    Image1: TImage;
-    Timer2: TTimer;
-    Timer3: TTimer;
-    tmFader: TTimer;
+    tmrTaskbarFocus: TTimer;
+    tmrUpdatePosition: TTimer;
+    pnlPopup: TPanel;
+    ulbAllWindows: TUWPListButton;
+    ulbDesktop: TUWPListButton;
+    ulbScreenSaver: TUWPListButton;
+    ulbMonitorsOff: TUWPListButton;
+    ulbActionCenter: TUWPListButton;
+    ulbCustomCommand: TUWPListButton;
+    ulbHideOthers: TUWPListButton;
+    ulbNoAction: TUWPListButton;
+    ulbStartMenu: TUWPListButton;
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -64,38 +83,40 @@ type
     procedure OnCornerOptionEnter(Sender: TObject);
     procedure OnCornerOptionLeave(Sender: TObject);
     procedure OnCornerOptionClick(Sender: TObject);
-    procedure Timer1Timer(Sender: TObject);
     procedure FormPaint(Sender: TObject);
     procedure OnCheckBoxClick(Sender: TObject);
     procedure Image1Click(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
-    procedure Timer2Timer(Sender: TObject);
-    procedure Timer3Timer(Sender: TObject);
-    procedure tmFaderTimer(Sender: TObject);
+    procedure tmrTaskbarFocusTimer(Sender: TObject);
+    procedure tmrUpdatePositionTimer(Sender: TObject);
   private
     { Private declarations }
     CornerOption : TXCombobox;
     MaxTop, MaxLeft : Integer;
     WinPosition: TTaskbarPosition;
-    fFadeType: TFadeType;
+    //fFadeType: TFadeType;
+    PopMenu: TFormPopup;
     procedure CloseApp(Sender: TObject);
     procedure UpdateColorization;
-    procedure WndProc(var Msg: TMessage); override;
     procedure UpdatePosition;
     procedure PopupMenuPopup(Sender: TObject);
     procedure InitCustomComponents;
     procedure GetTaskbarMonitor;
+    procedure ShowPopup(X,Y: Integer);
+    procedure ClosePopup;
 
-    property FadeType: TFadeType read fFadeType write fFadeType;
+    //property FadeType: TFadeType read fFadeType write fFadeType;
   protected
     { Like private but accessible from subclasses}
+    procedure WndProc(var Msg: TMessage); override;
+    procedure ChangeScale(M, D: Integer; DpiChanged: Boolean); override;
   public
     { Public declarations }
     tempDisabled: Boolean;
-    XPopupMenu: TXPopupMenu;
+    //XPopupMenu: TXPopupMenu;
     XCheckbox1: TXCheckbox;
     XCombo1,XCombo2,XCombo3,XCombo4,XComboAsLabel: TXCombobox;
-    easeT, easeB, easeC, easeD: LongInt;
+    //easeT, easeB, easeC, easeD: LongInt;
     procedure SaveINI;
     procedure LoadINI;
     procedure UpdateXCombos;
@@ -110,21 +131,36 @@ var
 implementation
 
 uses
-  functions, main;
+  functions, main, AnyiQuack, AQPSystemTypesAnimations;
 {$R *.dfm}
 
+procedure TfrmTrayPopup.ChangeScale(M, D: Integer; DpiChanged: Boolean);
+begin
+  inherited;
+  Width := MulDiv(420, Self.PixelsPerInch, 96);
+  Height := MulDiv(270, Self.PixelsPerInch, 96);
+end;
 
 procedure TfrmTrayPopup.CloseApp(Sender: TObject);
 begin
-  XPopupMenu.Hide;
+  //XPopupMenu.Hide;
+  ClosePopup;
   if GetForegroundWindow = FindWindow('Shell_TrayWnd',nil) then
   begin
     //start timer that will look if user  get's a different foregound
-    Timer2.Enabled := True;
-    Timer3.Enabled := True; // to prevnt app window stay in a poits position if user moves taskbar
+    tmrTaskbarFocus.Enabled := True;
+    tmrUpdatePosition.Enabled := True; // to prevnt app window stay in a poits position if user moves taskbar
   end
   else
     Close;
+end;
+
+procedure TfrmTrayPopup.ClosePopup;
+begin
+  if Assigned(PopMenu) then
+  begin
+    FreeAndNil(PopMenu);
+  end;
 end;
 
 procedure TfrmTrayPopup.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -146,40 +182,40 @@ begin
   Action := caNone;
 
 
-  begin
-  //Screen1 := GetRectOfPrimaryMonitor(False);
-  GetTaskbarMonitor;
-  case WinPosition of
-    tpBottom:
-    begin
-      repeat
-        if Top < Screen1.Height then  Top := Top + 50;
-        delay(10);
-      until (Top >= Screen1.Height) ;//or ( Form2.Visible);
-    end;
-    tpRight:
-    begin
-      repeat
-        if Left < Screen1.Left then  Left := Left + 50;
-        delay(10);
-      until Left >= Screen1.Left;
-    end;
-    tpTop:
-    begin
-      repeat
-        if Top > Screen1.Top then  Top := Top - 50;
-        delay(10);
-      until Top <= Screen1.Top;
-    end;
-    tpLeft:
-    begin
-      repeat
-        if Left > Screen1.Left then  Left := Left - 50;
-        delay(10);
-      until Left <= Screen1.Left;
-    end;
-  end;
-  end;
+//  begin
+//  //Screen1 := GetRectOfPrimaryMonitor(False);
+//  GetTaskbarMonitor;
+//  case WinPosition of
+//    tpBottom:
+//    begin
+//      repeat
+//        if Top < Screen1.Height then  Top := Top + 50;
+//        delay(10);
+//      until (Top >= Screen1.Height) ;//or ( Form2.Visible);
+//    end;
+//    tpRight:
+//    begin
+//      repeat
+//        if Left < Screen1.Left then  Left := Left + 50;
+//        delay(10);
+//      until Left >= Screen1.Left;
+//    end;
+//    tpTop:
+//    begin
+//      repeat
+//        if Top > Screen1.Top then  Top := Top - 50;
+//        delay(10);
+//      until Top <= Screen1.Top;
+//    end;
+//    tpLeft:
+//    begin
+//      repeat
+//        if Left > Screen1.Left then  Left := Left - 50;
+//        delay(10);
+//      until Left <= Screen1.Left;
+//    end;
+//  end;
+//  end;
   Action := caHide;
 
   // fade animation
@@ -187,11 +223,15 @@ begin
 end;
 
 procedure TfrmTrayPopup.FormCreate(Sender: TObject);
-
+var
+  DPI: Integer;
 begin
-
+  Width := MulDiv(420, Screen.PixelsPerInch, 96);
+  Height := MulDiv(270, Screen.PixelsPerInch, 96);
   // initialize the custom components before using them, it will be destroyed on OnDestroy
   InitCustomComponents;
+
+  Width := XCombo1.Width + XCombo2.Width + imgScreenShape.Width;
 
   DoubleBuffered := True;
   Color := clBlack;
@@ -206,7 +246,7 @@ begin
   Application.OnDeactivate := CloseApp;
 
   // Create the popup menu to select the hot corner's behavior
-  XPopupMenu := TXPopupMenu.Create(nil);
+{  XPopupMenu := TXPopupMenu.Create(nil);
   XPopupMenu.OnPopup := PopupMenuPopup;
 
   with XPopupMenu.Items.Add do
@@ -264,7 +304,7 @@ begin
     Name := 'N0';
     Text := '';
     OnClick := XMenuItemClick;
-  end;
+  end;}
 
   //UpdatePosition;
 //  FormPaint(Self);
@@ -296,18 +336,31 @@ begin
       Left := Shell_TrayWndRect.Left - Width;
     end;
   end;}
-  Timer1.Enabled := False;
-  Timer1.Interval := 3;
+//  tmrAnimation.Enabled := False;
+//  tmrAnimation.Interval := 3;
 
   // fading animation
   AlphaBlend := True;
-  AlphaBlendValue := 0;
-  fFadeType := ftIn;
+  //AlphaBlendValue := 0;
+//  fFadeType := ftIn;
+//  EnableBlur(Handle);
+
+  if isWindows11 then
+  begin
+    for var I := 0 to ComponentCount - 1 do
+    begin
+      if Components[I] is TUWPListButton then
+      begin
+        TfrmTrayPopup(Components[I]).Height := 33;
+      end;
+    end;
+  end;
+
 end;
 
 procedure TfrmTrayPopup.FormDestroy(Sender: TObject);
 begin
-  XPopupMenu.Free;
+  //XPopupMenu.Free;
   XCheckbox1.Free;
   XCombo1.Free;
   XCombo2.Free;
@@ -346,6 +399,12 @@ procedure TfrmTrayPopup.FormShow(Sender: TObject);
 
 //var
 //  Screen1: TRect;
+const
+  ANIMATIONPADDING = 33; // copied from windows network systray animation padding
+var
+  TypesAniPlugin: TAQPSystemTypesAnimations;
+  LAlphaBlendValue: Byte;
+  LNewRect: TRect;
 begin
   FormStyle := fsNormal;
   //Screen1 := GetRectOfPrimaryMonitor(False);
@@ -365,27 +424,39 @@ begin
   UpdateColorization;
 
   UpdatePosition;
+  // copy current position before modifying it for new starting position
+  LNewRect := BoundsRect;
   // precalculate starting details for easing animation
   case WinPosition of
     tpBottom:
     begin
-      easeB := Shell_TrayWndRect.Top; //starting position
-      Top := Shell_TrayWndRect.Bottom + Height;
+      //easeB := Shell_TrayWndRect.Top; //starting position
+      //Top := Shell_TrayWndRect.Bottom + Height;
+      Top := Top + ANIMATIONPADDING;
+      Height := Height - ANIMATIONPADDING;
     end;
     tpRight:
     begin
-      easeB := Shell_TrayWndRect.Left;
-      Left := Shell_TrayWndRect.Right + Width;
+      //easeB := Shell_TrayWndRect.Left;
+      //Left := Shell_TrayWndRect.Right + Width;
+      Left := Left + ANIMATIONPADDING;
+      Width := Width - ANIMATIONPADDING;
     end;
     tpTop:
     begin
-      easeB := Shell_TrayWndRect.Bottom; //starting position
-      Top := Shell_TrayWndRect.Top - Height;
+      //easeB := Shell_TrayWndRect.Bottom; //starting position
+      //Top := Shell_TrayWndRect.Top - Height;
+      Top := Top - ANIMATIONPADDING;
+      Height := Height - ANIMATIONPADDING;
+      //AnimatePosition(XCombo1, ANIMATIONPADDING, True);
     end;
     tpLeft:
     begin
-      easeB := Shell_TrayWndRect.Right;
-      Left := Shell_TrayWndRect.Left - Width;
+      //easeB := Shell_TrayWndRect.Right;
+      //Left := Shell_TrayWndRect.Left - Width;
+      Left := Left - ANIMATIONPADDING;
+      Width := Width - ANIMATIONPADDING;
+      //AnimatePosition(XCombo1, ANIMATIONPADDING, False);
     end;
   end;
 
@@ -394,16 +465,44 @@ begin
   ShowWindow(Application.Handle, SW_HIDE);
 
   //easing animation
-  if (WinPosition = tpBottom) or (WinPosition = tpTop) then
-  easeC := Height + 1// change in value, i.e. how many pixels to move our form
-  else if (WinPosition = tpLeft) or (WinPosition = tpRight) then
-  easeC := Width + 1;
-  easeD := 105; // duration
-  easeT := 0; // time set to 0
-  Timer1.Enabled := True;
+//  if (WinPosition = tpBottom) or (WinPosition = tpTop) then
+//  easeC := Height + 1// change in value, i.e. how many pixels to move our form
+//  else if (WinPosition = tpLeft) or (WinPosition = tpRight) then
+//  easeC := Width + 1;
+//  easeD := 105; // duration
+//  easeT := 0; // time set to 0
+//  tmrAnimation.Enabled := True;
 
+  TypesAniPlugin := Take(Sender)
+    .FinishAnimations.Plugin<TAQPSystemTypesAnimations>;
+
+  TypesAniPlugin.RectAnimation(LNewRect,
+    function(RefObject: TObject): TRect
+    begin
+      Result := TForm(RefObject).BoundsRect;
+    end,
+    procedure(RefObject: TObject; const NewRect: TRect)
+    begin
+      TForm(RefObject).BoundsRect := NewRect;
+    end,
+    300, 0, TAQ.Ease(etSext, emInInverted)
+  );
+  FormStyle := fsStayOnTop;
   // fade animation
-  tmFader.Enabled := True;
+//  tmFader.Enabled := True;
+  LAlphaBlendValue := 255;
+
+  TypesAniPlugin.IntegerAnimation(LAlphaBlendValue,
+    function(RefObject: TObject): Integer
+    begin
+      Result := TForm(RefObject).AlphaBlendValue;
+    end,
+    procedure(RefObject: TObject; const NewValue: Integer)
+    begin
+      TForm(RefObject).AlphaBlendValue := Byte(NewValue);
+    end,
+    300, 0, TAQ.Ease(etLinear, emIn)
+  );
 end;
 
 procedure TfrmTrayPopup.GetTaskbarMonitor;
@@ -432,7 +531,7 @@ end;
 
 procedure TfrmTrayPopup.Image1Click(Sender: TObject);
 begin
-  Image1.Visible := False;
+  //Image1.Visible := False;
 
   frmTrayPopup.XCombo1.Visible := True;
   frmTrayPopup.XCombo2.Visible := True;
@@ -452,11 +551,13 @@ begin
     Color := GetAccentColor;
     DisabledColor := $dddddd;
     Left := 100;
-    Top := Self.Height - 30;
+    Top := Self.Height - MulDiv(Height + 36, Self.PixelsPerInch, 96);
     Checked := True;
     OnClick := OnCheckBoxClick;
-    Width := Round(Width * (Self.PixelsPerInch/96));
-    Height := Round(Height * (Self.PixelsPerInch/96));
+//    Width := Round(Width * (Self.PixelsPerInch/96));
+    Width := MulDiv(Width, Self.PixelsPerInch, 96); // faster
+//    Height := Round(Height * (Self.PixelsPerInch/96));
+    Height := MulDiv(Height, Self.PixelsPerInch, 96);
   end;
 
   XCombo1 := TXCombobox.Create(Self);
@@ -476,13 +577,15 @@ begin
   XCombo2 := TXCombobox.Create(Self);
   with XCombo2 do
   begin
+    Anchors := [TAnchorKind.akTop, TAnchorKind.akRight];
     Parent := Self;
     Caption := 'All Windows';
     ControlState := [];
     Color := GetAccentColor;
     DisabledColor := $dddddd;
     //Left := Self.Width - 167 - 14;
-    Left := Self.Width - Width - 14;
+    //DPI Aware alignment
+    Left := Self.Width - MulDiv(Width - 14, Screen.PixelsPerInch, 96);
     Top := 35;
     Font.Name := Self.Font.Name;
     OnClick := OnCornerOptionClick;
@@ -492,12 +595,13 @@ begin
   with XCombo3 do
   begin
     Parent := Self;
+    Anchors := [TAnchorKind.akBottom, TAnchorKind.akLeft];
     Caption := 'All Windows';
     ControlState := [];
     Color := GetAccentColor;
     DisabledColor := $dddddd;
     Left := 14;
-    Top := Self.Height - 70;
+    Top := Self.Height - MulDiv(Height + 70, Screen.PixelsPerInch, 96);
     Font.Name := Self.Font.Name;
     OnClick := OnCornerOptionClick;
   end;
@@ -506,13 +610,14 @@ begin
   with XCombo4 do
   begin
     Parent := Self;
+    Anchors := [TAnchorKind.akBottom, TAnchorKind.akRight];
     Caption := 'All Windows';
     ControlState := [];
     Color := GetAccentColor;
     DisabledColor := $dddddd;
     //Left := Self.Width - 167 - 14;
-    Left := Self.Width - Width - 14;
-    Top := Self.Height - 70;
+    Left := Self.Width - MulDiv(Width - 14, Screen.PixelsPerInch, 96);
+    Top := Self.Height - MulDiv(Height + 70, Screen.PixelsPerInch, 96);
     Font.Name := Self.Font.Name;
     OnClick := OnCornerOptionClick;
   end;
@@ -529,13 +634,15 @@ begin
     Width := 167;
     Height := 31;//44;
     Left := XCheckbox1.Left + XCheckbox1.Width;
-    Top := Self.Height - 36;
+    Top := Self.Height - MulDiv(Height + 36, Screen.PixelsPerInch, 96);
     Font.Name := Self.Font.Name;
   end;
 
   // Adjusting
   XCheckbox1.Left := (frmTrayPopup.Width - (XCheckbox1.Width + XComboAsLabel.Width)) div 2;
+  XCheckbox1.Anchors := [TAnchorKind.akBottom, TAnchorKind.akLeft];
   XComboAsLabel.Left := XCheckbox1.Left + XCheckbox1.Width;
+  XComboAsLabel.Anchors := [TAnchorKind.akBottom, TAnchorKind.akLeft];
   if (XCombo3.Top + XCombo3.Height > XComboAsLabel.Top) then
     XCombo3.Top := XComboAsLabel.Top - XCombo3.Height;
   if (XCombo4.Top + XCombo4.Height > XComboAsLabel.Top) then
@@ -591,7 +698,8 @@ var
 begin
   if sender is TXCombobox then
   begin
-    totalMenuHeight := XPopupMenu.Items.VisibleCount * MENUHEIGHT;
+    //totalMenuHeight := XPopupMenu.Items.VisibleCount * MENUHEIGHT;
+    totalMenuHeight := pnlPopup.Height;
     x := Self.Left + (Sender as TXCombobox).Left;
     //y := Self.Top + TXCombobox(Sender).Top - 110;
 
@@ -605,7 +713,8 @@ begin
     end;
 
     CornerOption := TXCombobox(Sender);
-    XPopupMenu.Popup(x-1, y);
+    ShowPopup(x-1, Mouse.CursorPos.Y);
+    //XPopupMenu.Popup(x-1, y);
   end;
 
 end;
@@ -644,54 +753,24 @@ begin
   end;
 end;
 
-procedure TfrmTrayPopup.Timer1Timer(Sender: TObject);
+procedure TfrmTrayPopup.ShowPopup(X, Y: Integer);
 begin
-
-{ //previous animation with no easing
-  case WinPosition of
-    tpBottom:
-      begin
-        if Top > MaxTop then  Top := Top - 2;
-
-      end;
-    tpRight: if Left > MaxLeft then  Left := Left - 2;
-    tpTop: if Top < MaxTop then  Top := Top + 2;
-    tpLeft: if Left < MaxLeft then  Left := Left + 2;
-  end;
-}
-
-//new easing animation
-if easeT <= easeD then
-  begin
-    case WinPosition of
-      tpBottom: Self.Top:= easeB - (Trunc(easeC*(-Power(2,-10*easeT/easeD)+1)+easeB)-easeB);
-      tpRight: Self.Left:= easeB - (Trunc(easeC*(-Power(2,-10*easeT/easeD)+1)+easeB)-easeB);
-      tpTop: Self.Top:= (Trunc(easeC*(-Power(2,-10*easeT/easeD)+1)+easeB)-Height);
-      tpLeft: Self.Left:= (Trunc(easeC*(-Power(2,-10*easeT/easeD)+1)+easeB)-Width);
-    end;
-
-    easeT := easeT + Timer1.Interval;
-  end
-  else
-  begin
-    Timer1.Enabled:=False;
-    FormStyle := fsStayOnTop;
-  end;
+  PopMenu := TFormPopup.CreatePopup(Self, pnlPopup, nil, X, Y, []);
 end;
 
-procedure TfrmTrayPopup.Timer2Timer(Sender: TObject);
+procedure TfrmTrayPopup.tmrTaskbarFocusTimer(Sender: TObject);
 begin
   if GetForegroundWindow = frmTrayPopup.Handle then
   begin
-    Timer2.Enabled := False;
-    Timer3.Enabled := False;
+    tmrTaskbarFocus.Enabled := False;
+    tmrUpdatePosition.Enabled := False;
   end;
 
   if (GetForegroundWindow <> FindWindow('Shell_TrayWnd',nil))
   and (GetForegroundWindow <> frmTrayPopup.Handle) then
   begin
-    Timer2.Enabled := False;
-    Timer3.Enabled := False;
+    tmrTaskbarFocus.Enabled := False;
+    tmrUpdatePosition.Enabled := False;
     Close;
   end;
 
@@ -702,7 +781,7 @@ It might contain bugs, but the purpose is
 to monitor the taskbar in order to attach the window to the right place
 as this timer only works when app is not focused but taskbar is
 }
-procedure TfrmTrayPopup.Timer3Timer(Sender: TObject);
+procedure TfrmTrayPopup.tmrUpdatePositionTimer(Sender: TObject);
 var
   Shell_TrayWndRect: TRect;
   //Screen1 : TRect;
@@ -735,47 +814,12 @@ begin
 
 end;
 
-procedure TfrmTrayPopup.tmFaderTimer(Sender: TObject);
-const
-  FADE_IN_SPEED = 15;
-  FADE_OUT_SPEED = 5;
-var
-  newBlendValue: integer;
-begin
-  case FadeType of
-    ftIn:
-    begin
-      if AlphaBlendValue < 255 then
-        AlphaBlendValue := FADE_IN_SPEED + AlphaBlendValue
-      else
-      begin
-        AlphaBlendValue := 255;
-        tmFader.Enabled := False;
-      end;
-    end;
-    ftOut:
-    begin
-      if AlphaBlendValue > 0  then
-      begin
-        newBlendValue := -1 * FADE_OUT_SPEED + AlphaBlendValue;
-        if newBlendValue > 0 then
-          AlphaBlendValue := newBlendValue
-        else
-          AlphaBlendValue := 0;
-      end
-      else
-      begin
-        tmFader.Enabled := False;
-        Close;
-      end;
-    end;
-  end;
-end;
-
 procedure TfrmTrayPopup.UpdateColorization;
 begin
   if TaskbarTranslucent then
+  begin
     EnableBlur(Handle)
+  end
   else
     EnableBlur(Handle, False);
   // force window to repaint
@@ -809,7 +853,7 @@ begin
       if Left<1 then Left:=10;
       WinPosition := tpBottom;
       MaxTop:=Screen1.Height-Height-Shell_TrayWndRect.Bottom+Shell_TrayWndRect.Top;//-10;
-      Top := MaxTop + 20;
+      Top := MaxTop;// + 20;
       if Top<1 then Top:=10;
       end
       //arriba
@@ -823,7 +867,7 @@ begin
       if Left<1 then Left:=10;
       WinPosition := tpTop;
       MaxTop := Shell_TrayWndRect.Bottom; //+10;
-      Top := MaxTop - 20;
+      Top := MaxTop;// - 20;
       if Top<1 then Top:=10;
       end
       //izquierda
@@ -835,7 +879,7 @@ begin
       //ShowMessage('Está a la izquierda')
       WinPosition := tpLeft;
       MaxLeft := Shell_TrayWndRect.Right; //+10;
-      Left := MaxLeft - 20;
+      Left := MaxLeft;// - 20;
       if Left<1 then Left:=10;
       Top:=Screen1.Height-Height-10;
       if Top<1 then Top:=10;
@@ -849,7 +893,7 @@ begin
       //ShowMessage('Está a la derecha');
       WinPosition := tpRight;
       MaxLeft := Shell_TrayWndRect.Left-Width; //-10;
-      Left := MaxLeft + 20;
+      Left := MaxLeft;// + 20;
       if Left<1 then Left:=10;
       Top:=Screen1.Height-Height-10;
       if Top<1 then Top:=10;
@@ -862,7 +906,18 @@ end;
 // It will update values
 procedure TfrmTrayPopup.UpdateXCombos;
 begin
-  if not XPopupMenu.Items[5].Visible then
+  {if not XPopupMenu.Items[5].Visible then
+  begin
+    if XCombo1.Caption = 'Custom Command' then
+      XCombo1.Caption := '';
+    if XCombo2.Caption = 'Custom Command' then
+      XCombo2.Caption := '';
+    if XCombo3.Caption = 'Custom Command' then
+      XCombo3.Caption := '';
+    if XCombo4.Caption = 'Custom Command' then
+      XCombo4.Caption := '';
+  end;}
+  if not ulbCustomCommand.Visible then
   begin
     if XCombo1.Caption = 'Custom Command' then
       XCombo1.Caption := '';
@@ -880,11 +935,20 @@ begin
   if Msg.Msg = WM_DWMCOLORIZATIONCOLORCHANGED then
   begin
     UpdateColorization;
+    frmMain.UpdateTrayIcon();
   end;
 
   if Msg.Msg = WM_DISPLAYCHANGE then
   begin
     Self.Width := XCombo2.Left + XCombo2.Width + 14;
+    pnlPopup.Width := XCombo2.Width;
+  end;
+
+  if Msg.Msg = WM_DPICHANGED then
+  begin
+    //The Msg.WParam parameter contains the new DPI value after the change,
+    //and the second parameter of ChangeScale should be the old DPI value, which is 96 in this case.
+    ChangeScale(Msg.WParam, 96);
   end;
 
 
@@ -895,12 +959,18 @@ procedure TfrmTrayPopup.XMenuItemClick(Sender: TObject);
 begin
   if Sender <> nil then
   begin
-    CornerOption.Caption := ''+TXMenuItem(Sender).Text;
+    ClosePopup;
+    {CornerOption.Caption := ''+TXMenuItem(Sender).Text;
     if TXMenuItem(Sender).Text = 'Start Screen Saver' then
     CornerOption.Caption := 'Screen Saver';
 
     if TXMenuItem(Sender).Text = 'Hide Other Windows' then
-    CornerOption.Caption := 'Hide Windows';
+    CornerOption.Caption := 'Hide Windows';}
+    CornerOption.Caption := ''+TUWPListButton(Sender).Caption;
+    if TUWPListButton(Sender).Caption = 'Start Screen Saver' then
+      CornerOption.Caption := 'Screen Saver';
+    if TUWPListButton(Sender).Caption = 'Hide Other Windows' then
+      CornerOption.Caption := 'Hide Windows';
 
     SaveINI;
   end;
