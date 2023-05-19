@@ -25,7 +25,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  StdCtrls, PNGimage, functions, GDIPApi, GDIPobj;
+  StdCtrls, PNGimage, functions, GDIPApi, GDIPobj, Types;
 
 type
   TXCombobox = class(TGraphicControl)
@@ -62,6 +62,7 @@ type
     procedure MouseEnter(var Message: TMessage); message CM_MOUSEENTER;
     procedure Click; override;
     procedure SetParent(Value: TWinControl); override;
+    procedure ChangeScale(M, D: Integer; DpiChanged: Boolean); override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -95,6 +96,15 @@ begin
 end;
 
 { TXCombobox }
+
+procedure TXCombobox.ChangeScale(M, D: Integer; DpiChanged: Boolean);
+begin
+  inherited;
+//  Width := MulDiv(Width, Screen.PixelsPerInch, 96);
+//  Height := MulDiv(Height, Screen.PixelsPerInch, 96);
+//  Font.Size := MulDiv(Font.Size, M, D);
+//  BoundsRect := Rect(MulDiv(Left, M, D), MulDiv(Top, M, D), MulDiv(Width, M, D), MulDiv(Height, M, D));
+end;
 
 procedure TXCombobox.Click;
 begin
@@ -238,10 +248,22 @@ begin
                 else
                 pen.SetColor(MakeGDIPColor(_disabledColor));//(BlendColors(_disabledColor,clWhite,70)));
 
-              graph.DrawLine(pen,l,t,l+w,t);
-              graph.DrawLine(pen,l,t,l,t+h);
-              graph.DrawLine(pen,l,t+h,l+w,t+h);
-              graph.DrawLine(pen,l+w,t,l+w,t+h);
+//              graph.DrawLine(pen,l,t,l+w,t);
+//              graph.DrawLine(pen,l,t,l,t+h);
+//              graph.DrawLine(pen,l,t+h,l+w,t+h);
+//              graph.DrawLine(pen,l+w,t,l+w,t+h);
+              //if win11 shows a rounded rectangle
+                var radio2 := 8;
+              pen.SetWidth(1);
+              pen.SetColor(MakeGDIPColor(_disabledColor,100));
+                graph.DrawArc(pen, l, t, radio2, radio2, 180, 90);
+                graph.DrawArc(pen, l + w - radio2, t, radio2, radio2, 270, 90);
+                graph.DrawArc(pen, l, t + h - radio2, radio2, radio2, 90, 90);
+                graph.DrawArc(pen, l + w - radio2, t + h - radio2, radio2, radio2, 0, 90);
+                graph.DrawLine(pen, l + 4, t, l + w - 4, t);
+                graph.DrawLine(pen, l + w, t + 4, l + w, t + h - 4);
+                graph.DrawLine(pen, l + 4, t + h, l + w - 4, t + h);
+                graph.DrawLine(pen, l, t + 4, l, t + h - 4);
               //draw knob
               pen.SetWidth(1);
               pen.SetColor(MakeGDIPColor(_disabledColor,100));
