@@ -2,21 +2,20 @@ object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'frmMain'
-  ClientHeight = 319
-  ClientWidth = 490
+  ClientHeight = 302
+  ClientWidth = 482
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
-  Font.Height = -11
-  Font.Name = 'Tahoma'
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
   Font.Style = []
-  OldCreateOrder = False
+  Font.Quality = fqClearTypeNatural
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnShow = FormShow
-  PixelsPerInch = 96
-  TextHeight = 13
-  object UPanel1: TUPanel
+  TextHeight = 15
+  object UPanel1: TUWPPanel
     Left = 232
     Top = 24
     Width = 209
@@ -37,7 +36,7 @@ object frmMain: TfrmMain
     CustomBackColor.Color = 10526880
     CustomBackColor.LightColor = 10526880
     CustomBackColor.DarkColor = 10526880
-    object UListButton1: TUListButton
+    object ulbExit: TUWPListButton
       Left = 1
       Top = 97
       Width = 207
@@ -45,7 +44,7 @@ object frmMain: TfrmMain
       Align = alTop
       Caption = 'E&xit'
       TabOrder = 0
-      OnClick = UListButton1Click
+      OnClick = ulbExitClick
       IconFont.Charset = DEFAULT_CHARSET
       IconFont.Color = clWindowText
       IconFont.Height = -16
@@ -67,7 +66,7 @@ object frmMain: TfrmMain
       FontIcon = #62385
       Detail = ''
     end
-    object UListButton2: TUListButton
+    object ulbSettings: TUWPListButton
       Left = 1
       Top = 65
       Width = 207
@@ -75,7 +74,7 @@ object frmMain: TfrmMain
       Align = alTop
       Caption = 'Settings'
       TabOrder = 1
-      OnClick = UListButton2Click
+      OnClick = ulbSettingsClick
       IconFont.Charset = DEFAULT_CHARSET
       IconFont.Color = clWindowText
       IconFont.Height = -16
@@ -97,7 +96,7 @@ object frmMain: TfrmMain
       FontIcon = #59155
       Detail = ''
     end
-    object UListButton3: TUListButton
+    object ulbAbout: TUWPListButton
       Left = 1
       Top = 1
       Width = 207
@@ -105,7 +104,7 @@ object frmMain: TfrmMain
       Align = alTop
       Caption = '&About'
       TabOrder = 2
-      OnClick = UListButton3Click
+      OnClick = ulbAboutClick
       IconFont.Charset = DEFAULT_CHARSET
       IconFont.Color = clWindowText
       IconFont.Height = -16
@@ -127,7 +126,7 @@ object frmMain: TfrmMain
       FontIcon = #59718
       Detail = ''
     end
-    object UListButton4: TUListButton
+    object ulbStartWithWindows: TUWPListButton
       Left = 1
       Top = 33
       Width = 207
@@ -135,7 +134,7 @@ object frmMain: TfrmMain
       Align = alTop
       Caption = '&Start with Windows'
       TabOrder = 3
-      OnClick = UListButton4Click
+      OnClick = ulbStartWithWindowsClick
       IconFont.Charset = DEFAULT_CHARSET
       IconFont.Color = clWindowText
       IconFont.Height = -16
@@ -164,29 +163,6 @@ object frmMain: TfrmMain
     OnTimer = tmrHotSpotTimer
     Left = 24
     Top = 24
-  end
-  object PopupMenu1: TPopupMenu
-    Left = 96
-    Top = 24
-    object About1: TMenuItem
-      Caption = '&About'
-      OnClick = About1Click
-    end
-    object emporarydisabled1: TMenuItem
-      Caption = '&Start with Windows'
-      OnClick = emporarydisabled1Click
-    end
-    object Advanced1: TMenuItem
-      Caption = 'Ad&vanced'
-      OnClick = Advanced1Click
-    end
-    object N1: TMenuItem
-      Caption = '-'
-    end
-    object Exit1: TMenuItem
-      Caption = 'E&xit'
-      OnClick = Exit1Click
-    end
   end
   object tmrDelay: TTimer
     Enabled = False
@@ -218,5 +194,20 @@ object frmMain: TfrmMain
       Caption = 'actShowDesktop'
       OnExecute = actShowDesktopExecute
     end
+    object actShowStartMenu: TAction
+      Caption = 'actShowStartMenu'
+      OnExecute = actShowStartMenuExecute
+    end
+  end
+  object tmrSideGestures: TTimer
+    OnTimer = tmrSideGesturesTimer
+    Left = 336
+    Top = 216
+  end
+  object tmrShakeMouse: TTimer
+    Interval = 50
+    OnTimer = tmrShakeMouseTimer
+    Left = 200
+    Top = 240
   end
 end

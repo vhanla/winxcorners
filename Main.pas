@@ -25,6 +25,12 @@ Features requested:
 - Virtual Desktop Screen switcher
 
 CHANGELOG:
+- 23-04-10
+  frmMouseShake added with Animated Gif to show the mouse cursor position on Ctrl hold + mouse shake
+
+- 22-06-06
+  Refactor actions handling, and define scripting functions
+
 - 20-09-03
   Added PascalScript for extending custom actions via pascal scripts
   Moved actions to actionsManager.pas
@@ -91,12 +97,17 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, ShellApi, Vcl.Menus, Registry, System.Generics.Collections,
-  madExceptVcl, System.Actions, Vcl.ActnList, UCL.Classes, UCL.CheckBox,
-  UCL.ListButton, UCL.Form, UCL.Popup, UCL.ThemeManager, UCL.PopupMenu,
-  UCL.Panel, actionsManager;
+  madExceptVcl, System.Actions, Vcl.ActnList, UWP.Classes,
+  UWP.ListButton, UWP.Form, UCL.Popup, UWP.ColorManager, UWP.PopupMenu,
+  VirtualDesktopManager,
+  UWP.Panel, actionsManager, taskbarHelper;
 
 const
   WM_DPICHANGED = $02E0;
+  INTERVAL = 300; //double tap time span to qualify
+
+  ShakeThreshold = 100;
+  MaxShakeCounter = 6;
 
 type
 
@@ -106,43 +117,42 @@ type
     constructor Create(myRect: TRect);overload;
   end;}
 
-  TfrmMain = class(TUForm)
+  TShakeDirection = (sdNone, sdLeft, sdRight);
+
+  TfrmMain = class(TUWPForm)
     tmrHotSpot: TTimer;
-    PopupMenu1: TPopupMenu;
-    Exit1: TMenuItem;
-    emporarydisabled1: TMenuItem;
-    N1: TMenuItem;
-    About1: TMenuItem;
     tmrDelay: TTimer;
-    Advanced1: TMenuItem;
     MadExceptionHandler1: TMadExceptionHandler;
     ActionList1: TActionList;
     actCtrlAltTab: TAction;
     actShowTaskView: TAction;
     actShowActionCenterSidebar: TAction;
     actShowDesktop: TAction;
-    UListButton1: TUListButton;
-    UListButton2: TUListButton;
-    UListButton3: TUListButton;
-    UListButton4: TUListButton;
-    UPanel1: TUPanel;
+    ulbExit: TUWPListButton;
+    ulbSettings: TUWPListButton;
+    ulbAbout: TUWPListButton;
+    ulbStartWithWindows: TUWPListButton;
+    UPanel1: TUWPPanel;
+    tmrSideGestures: TTimer;
+    actShowStartMenu: TAction;
+    tmrShakeMouse: TTimer;
     procedure tmrHotSpotTimer(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure Exit1Click(Sender: TObject);
-    procedure About1Click(Sender: TObject);
     procedure emporarydisabled1Click(Sender: TObject);
     procedure tmrDelayTimer(Sender: TObject);
-    procedure Advanced1Click(Sender: TObject);
     procedure actCtrlAltTabExecute(Sender: TObject);
     procedure actShowTaskViewExecute(Sender: TObject);
     procedure actShowActionCenterSidebarExecute(Sender: TObject);
     procedure actShowDesktopExecute(Sender: TObject);
-    procedure UListButton3Click(Sender: TObject);
-    procedure UListButton4Click(Sender: TObject);
-    procedure UListButton2Click(Sender: TObject);
-    procedure UListButton1Click(Sender: TObject);
+    procedure ulbAboutClick(Sender: TObject);
+    procedure ulbStartWithWindowsClick(Sender: TObject);
+    procedure ulbSettingsClick(Sender: TObject);
+    procedure ulbExitClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure tmrSideGesturesTimer(Sender: TObject);
+    procedure actShowStartMenuExecute(Sender: TObject);
+    procedure tmrShakeMouseTimer(Sender: TObject);
   private
     { Private declarations }
     FSystray: TFormPopup;
@@ -155,6 +165,9 @@ type
     hotActionStr: String;
     hotActionDelay: Integer;
     hotActionDelayCounter: Integer;
+    startTime: Uint64;
+    isInArea: Boolean;
+    tapCounter: Integer;
     FRegisteredSessionNotification: Boolean;
     procedure Iconito(var Msg: TMessage); message WM_USER + 1;
     procedure HotAction(hAction: string);
@@ -163,12 +176,20 @@ type
     procedure WMDpiChanged(var Message: TMessage); message WM_DPICHANGED;
     procedure ShowPopup;
     procedure ClosePopup;
+  private
+    { Private Declarations }
+    FPrevMousePos: TPoint;
+    FShakeCounter: Integer;
+    FShakeDirection: TShakeDirection;
+    procedure HandleShaking(MPos: TPoint);
   protected
     procedure WndProc(var Msg: TMessage); override;
     //procedure WMCopyData(var Msg: TMessage); message WM_COPYDATA;
     procedure HotSpotAction(MPos: TPoint);
   public
     { Public declarations }
+    FMainTaskbar: TMainTaskbar;
+    FShaking: Boolean;
     procedure CreateParams(var Params: TCreateParams); override;
     procedure UpdateTrayIcon(grayed: boolean = False);
     property PrevHandle: HWND read FPrevHandle write FPrevHandle;
@@ -191,16 +212,11 @@ var
 implementation
 
 uses
-  functions, frmSettings, osdgui, frmAdvanced, XCombobox, frmWinTiles;
+  functions, frmSettings, osdgui, frmAdvanced, XCombobox, frmWinTiles, frmMouseShake, fmxSettings;
 {$R *.dfm}
 
 const
   WM_MOUSE_COORDS = WM_USER + 9;
-
-procedure TfrmMain.Exit1Click(Sender: TObject);
-begin
-  Close;
-end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
@@ -211,15 +227,15 @@ begin
   end;
 
   SetPriorityClass(GetCurrentProcess, $4000);
-
-  FShellTaskViewExists := DetectShellTaskSwitch;
-  FShellShowDesktopExists := DetectShellShowDesktop;
+  { TODO : Just use keybd_event since it is faster, as of now }
+  FShellTaskViewExists := False;//DetectShellTaskSwitch;
+  FShellShowDesktopExists := False;//DetectShellShowDesktop;
 
   wmTaskbarRestartMsg := RegisterWindowMessage('TaskbarCreated');
 
   UpdateTrayIcon();
 
-  ThemeManager.ThemeType := TUThemeType.ttDark;
+  ColorizationManager.ColorizationType := TUWPColorizationType.ctDark;
   //ugly workaround to allow custom popup
   Width := 10; Height := 10;
   SetWindowLong(Handle, GWL_EXSTYLE, GetWindowLong(Handle, GWL_EXSTYLE) or WS_EX_LAYERED or WS_EX_TOOLWINDOW or WS_EX_TRANSPARENT);
@@ -232,10 +248,13 @@ begin
   FRegisteredSessionNotification := WTSRegisterSessionNotification(Handle, NOTIFY_FOR_THIS_SESSION);
 
 //  RunHook(Handle);
+  FMainTaskbar := TMainTaskbar.Create(nil);
+//  FMainTaskbar.OnTaskbarRestarted :=
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
+  FMainTaskbar.Free;
   //Screens.Free;
 //  KillHook;
 
@@ -253,10 +272,27 @@ begin
   ShowWindow(Application.Handle, SW_HIDE);
 end;
 
+procedure TfrmMain.HandleShaking(MPos: TPoint);
+begin
+  // Let's show the ballon of the mouse
+//  frmOSD.DrawBubble(IntToStr(hotActionDelay - hotActionDelayCounter));
+//  frmOSD.Left := MPos.X;
+//  frmOSD.Top := MPos.Y;
+//  frmOSD.Show;
+  frmMouseShake.formMouseShake.Left := MPos.X - frmMouseShake.formMouseShake.Width div 2;
+  frmMouseShake.formMouseShake.Top := MPos.Y - frmMouseShake.formMouseShake.Height div 2;
+   frmMouseShake.formMouseShake.Show;
+  Winapi.Windows.ShowWindow(frmMouseShake.formMouseShake.Handle, SW_SHOWNOACTIVATE);
+  frmMouseShake.formMouseShake.Timer1.Enabled := True;
+  frmMouseShake.formMouseShake.tmrMousePos.Enabled := True;
+  frmMouseShake.formMouseShake.JvGIFAnimator1.Animate := True;
+//  FShaking := False;
+end;
+
 procedure TfrmMain.HotAction(hAction: string);
 // this neat fun method comes from http://stackoverflow.com/questions/12960702/enum-from-string
 const
-  HotActions: Array[THotAction] of string = ('All Windows','Desktop','Screen Saver','Monitors Off','Action Center', 'Custom Command', 'Hide Windows', '');
+  HotActions: Array[THotAction] of string = ('All Windows','Desktop','Screen Saver','Monitors Off','Action Center', 'Custom Command', 'Start Menu', 'Hide Windows', '');
 
   function GetAction(const str: string): THotAction;
   begin
@@ -271,8 +307,10 @@ const
 //  Shell_SecondaryTrayWnd: HWND;
 //  procid: integer;
 begin
-  if frmTrayPopup.tempDisabled or DetectFullScreen3D then
-  Exit;
+  if frmTrayPopup.tempDisabled or DetectFullScreen3D or DetectFullScreenApp then
+  begin
+    Exit;
+  end;
 
   // avoid usage if mouse is in use (buttons down e.g.)
   // if value is negative, it means is in use (aka held down)
@@ -287,8 +325,8 @@ begin
       // let's first attempt using the taskview button
 //      if not TaskbarTaskViewBtnClick then
       begin
-        //actShowTaskView.Execute;
-        actCtrlAltTab.Execute;
+        actShowTaskView.Execute;
+        //actCtrlAltTab.Execute;
       end;
     end;
     haActionCenter:
@@ -306,6 +344,10 @@ begin
     haMonitorOff:
       begin
         SendMessage(Application.Handle, WM_SYSCOMMAND, SC_MONITORPOWER,2);
+      end;
+    haStartMenu:
+      begin
+        actShowStartMenu.Execute;
       end;
     haCustomCmd:
     begin
@@ -568,12 +610,14 @@ begin
   begin
     if not IsWindowVisible(frmTrayPopup.Handle) then
     begin
-
-      frmTrayPopup.Show;
-      frmTrayPopup.Image1Click(frmTrayPopup);
+      fmxSettingsForm.Show;
+//      frmTrayPopup.Show;
+//      frmTrayPopup.Image1Click(frmTrayPopup);
     end
     else
-      frmTrayPopup.Close
+      fmxSettingsForm.Focus;
+//      fmxSettingsForm.Close;
+//      frmTrayPopup.Close
   end;
 
 end;
@@ -664,22 +708,97 @@ begin
 
 end;
 
-procedure TfrmMain.UListButton1Click(Sender: TObject);
+procedure TfrmMain.tmrShakeMouseTimer(Sender: TObject);
+var
+  MousePos: TPoint;
+  NewDirection: TShakeDirection;
+begin
+  if not GetKeyState(VK_CONTROL)<0 then Exit;
+
+  MousePos := GetCursorXY;
+
+  if MousePos.X < FPrevMousePos.X then
+    NewDirection := sdLeft
+  else if MousePos.X > FPrevMousePos.X then
+    NewDirection := sdRight
+  else
+    NewDirection := sdNone;
+
+  if (NewDirection <> sdNone) and (NewDirection <> FShakeDirection) then
+  begin
+    FShakeDirection := NewDirection;
+    Inc(FShakeCounter);
+  end
+  else if NewDirection = sdNone then
+  begin
+    FShakeCounter := 0;
+  end;
+
+  if not FShaking and (FShakeCounter >= MaxShakeCounter) then
+  begin
+    FShaking := True;
+    HandleShaking(MousePos);
+    FShakeCounter := 0;
+  end;
+
+  FPrevMousePos := MousePos;
+end;
+
+procedure TfrmMain.tmrSideGesturesTimer(Sender: TObject);
+var
+  mpos: TPoint;
+  curTime: UInt64;
+begin
+  curTime := GetTickCount64;
+  curTime := curTime - startTime;
+
+
+  if not Winapi.Windows.GetCursorPos(mpos) then
+    mpos := Point(110, 110);
+
+  if (mpos.Y = 0) and not(isInArea) then
+  begin
+    // let's make it aware that is has been tapped one
+    isInArea := True;
+    if tapCounter = 0 then
+      startTime := GetTickCount64;
+
+    Inc(tapCounter);
+
+    if (tapCounter = 2) and (curTime < INTERVAL) then
+    begin
+      tapCounter := 0; // reset counter
+      // doaction
+    end;
+
+    if tapCounter = 2 then tapCounter := 0;
+  end
+  // clear counter if area is left
+  else if (mpos.Y > 10) then
+  begin
+    if (curTime > INTERVAL) and (tapCounter = 1) then
+      tapCounter := 0;
+    isInArea := False;
+  end;
+
+end;
+
+procedure TfrmMain.ulbExitClick(Sender: TObject);
 begin
   ClosePopup;
   Close;
 end;
 
-procedure TfrmMain.UListButton2Click(Sender: TObject);
+procedure TfrmMain.ulbSettingsClick(Sender: TObject);
 begin
   ClosePopup;
   frmAdvSettings.Show;
 end;
 
-procedure TfrmMain.UListButton3Click(Sender: TObject);
+procedure TfrmMain.ulbAboutClick(Sender: TObject);
 begin
   ClosePopup;
-  frmTrayPopup.XCombo1.Visible := False;
+{  frmTrayPopup.XCombo1.Visible := False;
   frmTrayPopup.XCombo2.Visible := False;
   frmTrayPopup.XCombo3.Visible := False;
   frmTrayPopup.XCombo4.Visible := False;
@@ -690,22 +809,26 @@ begin
   frmTrayPopup.Image1.Visible := True;
   frmTrayPopup.Image1.Left := (frmTrayPopup.Width - frmTrayPopup.Image1.Width) div 2;
   frmTrayPopup.Image1.Top := (frmTrayPopup.Height - frmTrayPopup.Image1.Height) div 2;
+}
+  frmAdvSettings.Show;
+  frmAdvSettings.ulbtnAboutClick(Self);
+  frmAdvSettings.ulbtnAbout.Selected := True;
 end;
 
-procedure TfrmMain.UListButton4Click(Sender: TObject);
+procedure TfrmMain.ulbStartWithWindowsClick(Sender: TObject);
 begin
   ClosePopup;
-  if emporarydisabled1.Checked then
-    RegAutoStart(False)
-  else
+  if ulbStartWithWindows.FontIcon = '' then
+  begin
+    ulbStartWithWindows.FontIcon := '';
     RegAutoStart;
-
-  emporarydisabled1.Checked := not emporarydisabled1.Checked;
-
-  if emporarydisabled1.Checked then
-    UListButton4.FontIcon := ''
+  end
   else
-    UListButton4.FontIcon := '';
+  begin
+    ulbStartWithWindows.FontIcon := '';
+    RegAutoStart(False)
+  end;
+
 end;
 
 procedure TfrmMain.UpdateTrayIcon(grayed: boolean);
@@ -845,22 +968,6 @@ begin
   inherited WndProc(Msg);
 end;
 
-procedure TfrmMain.About1Click(Sender: TObject);
-begin
-
-  frmTrayPopup.XCombo1.Visible := False;
-  frmTrayPopup.XCombo2.Visible := False;
-  frmTrayPopup.XCombo3.Visible := False;
-  frmTrayPopup.XCombo4.Visible := False;
-  frmTrayPopup.XCheckbox1.Visible := False;
-  frmTrayPopup.XComboAsLabel.Visible := False;
-  if not frmTrayPopup.Visible then
-  frmTrayPopup.Show;
-  frmTrayPopup.Image1.Visible := True;
-  frmTrayPopup.Image1.Left := (frmTrayPopup.Width - frmTrayPopup.Image1.Width) div 2;
-  frmTrayPopup.Image1.Top := (frmTrayPopup.Height - frmTrayPopup.Image1.Height) div 2;
-end;
-
 procedure TfrmMain.actCtrlAltTabExecute(Sender: TObject);
 begin
   FPrevHandle := GetForegroundWindow;
@@ -879,7 +986,7 @@ begin
 
   wndListWindows.Show;
   SwitchToThisWindow(wndListWindows.Handle, False);
-  exit;
+  //exit;
 //PerformCtrlAltTab; <~this is buggy
     keybd_event(VK_CONTROL,MapVirtualKey(VK_CONTROL,0),0,0);
 //    Sleep(10);
@@ -936,8 +1043,30 @@ begin
   end;
 end;
 
-procedure TfrmMain.actShowTaskViewExecute(Sender: TObject);
+procedure TfrmMain.actShowStartMenuExecute(Sender: TObject);
 begin
+  Perform(WM_SYSCOMMAND, SC_TASKLIST, 0);
+end;
+
+procedure TfrmMain.actShowTaskViewExecute(Sender: TObject);
+//const
+//  TaskSwitch = $19B;
+//var
+//  taskbar: HWND;
+//  pid: Cardinal;
+begin
+
+//  frmWinTiles.wndListWindows.Show;
+//  fmxStageManager.Form1.Show;
+//  exit;
+//  taskbar := FindWindow('Shell_TrayWnd', nil);
+//  if taskbar > 0 then
+//  begin
+////    GetWindowThreadProcessId(taskbar, @pid);
+////    AllowSetForegroundWindow(pid);
+//    PostMessage(taskbar, $111, TaskSwitch, 0);
+//  end;
+//  Exit;
   if FShellTaskViewExists then
     ShellExecute(0, PChar('OPEN'), PChar('explorer.exe'), PChar('shell:::{3080F90E-D7AD-11D9-BD98-0000947B0257}'), nil, SW_SHOWNORMAL)
   else // the old method which is hacky
@@ -962,11 +1091,6 @@ begin
   end;
 end;
 
-procedure TfrmMain.Advanced1Click(Sender: TObject);
-begin
-  frmAdvSettings.Show;
-end;
-
 procedure TfrmMain.AutoStartState;
 var
   reg: TRegistry;
@@ -978,11 +1102,7 @@ begin
     try
     if reg.ReadString('WinXCorners')<> '' then
     begin
-      emporarydisabled1.Checked := True;
-      if emporarydisabled1.Checked then
-        UListButton4.FontIcon := ''
-      else
-        UListButton4.FontIcon := ''
+      ulbStartWithWindows.FontIcon := '';
     end;
     except
     end;
@@ -1007,12 +1127,7 @@ end;
 
 procedure TfrmMain.emporarydisabled1Click(Sender: TObject);
 begin
-  if emporarydisabled1.Checked then
-    RegAutoStart(False)
-  else
-    RegAutoStart;
 
-  emporarydisabled1.Checked := not emporarydisabled1.Checked;
 end;
 
 { TScreens }
