@@ -212,6 +212,8 @@ var
   StartupInput: TGDIPlusStartupInput;
   {$ifdef VER340} //fix to Delphi 10.4
   GDIPlusToken: NativeUint;
+  {$else if VER350} //fox for Delphi 11
+  GDIPlusToken: NativeUint;
   {$else}
   GDIPlusToken: DWORD;
   {$endif}
