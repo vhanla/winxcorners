@@ -12,15 +12,31 @@ library WinXHelper;
 
 uses
   Windows,
-//  SysUtils,
   Messages;
 
 const
   MemMapFile = 'WinXCorners';
+  WM_KEYSTATUSCHANGED = WM_USER + 3;
+
 type
+  PKBDLLHOOKSTRUCT = ^TKBDLLHOOKSTRUCT;
+  TKBDLLHOOKSTRUCT = record
+    vkCode: Cardinal;
+    scanCode: Cardinal;
+    flags: Cardinal;
+    time: Cardinal;
+    dwExtrainfo: Cardinal;
+  end;
+  TKeyStatus = record
+    ShiftPressed: Boolean;
+    CtrlPressed: Boolean;
+    AltPressed: Boolean;
+  end;
   PDLLGlobal = ^TDLLGlobal;
   TDLLGlobal = packed record
     HookHandle: HHOOK;
+    KeyHookHandle: HHOOK;
+    PrevKeyStatus: TKeyStatus;
   end;
 
 var
@@ -58,7 +74,7 @@ begin
       Msg^.dwData := 0;
       //Msg^.cbData := Length(MsgStr) + 1;
       //Msg^.lpData := PAnsiChar(MsgStr);
-      Msg^.cbData := SizeOf(TMouseHookStruct) + 1;
+      Msg^.cbData := SizeOf(TMouseHookStruct);// + 1;
       Msg^.lpData := PMouseHookStruct(lParam);
       //PostMessage(TargetWnd, WM_COPYDATA, CurWnd, Integer(Msg));
       SendMessageTimeout(TargetWnd, WM_COPYDATA, 0, Integer(Msg), SMTO_ABORTIFHUNG, 50, nil);
@@ -67,6 +83,43 @@ begin
   end;
 
   Result := CallNextHookEx(GlobalData^.HookHandle, Code, wParam, lParam);
+end;
+
+function KeyboardHookProc(nCode: Integer; wParam: WPARAM; lParam: LPARAM): LRESULT; stdcall;
+var
+  HookStruct: PKBDLLHOOKSTRUCT;
+  CurrentKeyStatus: TKeyStatus;
+begin
+  if nCode = HC_ACTION then
+  begin
+    HookStruct := PKBDLLHOOKSTRUCT(lParam);
+
+    // Check if any of the modifier keys (Ctrl, Alt, Shift) have changed
+    CurrentKeyStatus.CtrlPressed := HookStruct^.vkCode = VK_CONTROL;
+    CurrentKeyStatus.AltPressed := HookStruct^.vkCode = VK_MENU;
+    CurrentKeyStatus.ShiftPressed := HookStruct^.vkCode = VK_SHIFT;
+
+    if (CurrentKeyStatus.CtrlPressed <> GlobalData^.PrevKeyStatus.CtrlPressed)
+    or (CurrentKeyStatus.AltPressed <> GlobalData^.PrevKeyStatus.AltPressed)
+    or (CurrentKeyStatus.ShiftPressed <> GlobalData^.PrevKeyStatus.ShiftPressed)
+    then
+    begin
+      var TargetWnd := FindWindow('WinXCorners', nil);
+      if TargetWnd <> 0 then
+      begin
+        // Send a message to the calling application with the updated key status
+        PostMessage(TargetWnd, WM_KEYSTATUSCHANGED, wParam, Windows.LPARAM(@CurrentKeyStatus));
+      end;
+
+      // Update the previous key status
+      GlobalData^.PrevKeyStatus := CurrentKeyStatus;
+    end;
+
+
+  end;
+
+  // Call the next hook in the chain
+  Result := CallNextHookEx(GlobalData^.KeyHookHandle, nCode, wParam, lParam);
 end;
 
 procedure CreateGlobalHeap;
@@ -105,10 +158,18 @@ begin
     MessageBox(0, 'Error :)', '', MB_OK);
     Exit;
   end;
+  GlobalData^.KeyHookHandle := SetWindowsHookEx(WH_KEYBOARD_LL, @KeyboardHookProc, HInstance, 0);
+  if GlobalData^.KeyHookHandle = INVALID_HANDLE_VALUE then
+  begin
+    MessageBox(0, 'Error :)', '', MB_OK);
+    Exit;
+  end;
 end;
 
 procedure KillHook; stdcall;
 begin
+  if (GlobalData <> nil) and (GlobalData^.KeyHookHandle <> INVALID_HANDLE_VALUE) then
+    UnhookWindowsHookEx(GlobalData^.KeyHookHandle);
   if (GlobalData <> nil) and (GlobalData^.HookHandle <> INVALID_HANDLE_VALUE) then
     UnhookWindowsHookEx(GlobalData^.HookHandle);
 end;
