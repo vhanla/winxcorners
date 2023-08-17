@@ -12,11 +12,11 @@ library WinXHelper;
 
 uses
   Windows,
-  Messages;
+  Messages,
+  sharedDefs in 'sharedDefs.pas';
 
 const
   MemMapFile = 'WinXCorners';
-  WM_KEYSTATUSCHANGED = WM_USER + 3;
 
 type
   PKBDLLHOOKSTRUCT = ^TKBDLLHOOKSTRUCT;
@@ -27,11 +27,7 @@ type
     time: Cardinal;
     dwExtrainfo: Cardinal;
   end;
-  TKeyStatus = record
-    ShiftPressed: Boolean;
-    CtrlPressed: Boolean;
-    AltPressed: Boolean;
-  end;
+
   PDLLGlobal = ^TDLLGlobal;
   TDLLGlobal = packed record
     HookHandle: HHOOK;
