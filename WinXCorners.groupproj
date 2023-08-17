@@ -3,9 +3,6 @@
         <ProjectGuid>{DD5D3BF6-79F0-4F0D-A552-E035AA0D9BE0}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
-        <Projects Include="..\DEMOs\LogForegroundWindow\LogForegroundWindow.dproj">
-            <Dependencies/>
-        </Projects>
         <Projects Include="WinXHelper.dproj">
             <Dependencies/>
         </Projects>
@@ -20,15 +17,6 @@
             <Default.Personality/>
         </BorlandProject>
     </ProjectExtensions>
-    <Target Name="LogForegroundWindow">
-        <MSBuild Projects="..\DEMOs\LogForegroundWindow\LogForegroundWindow.dproj"/>
-    </Target>
-    <Target Name="LogForegroundWindow:Clean">
-        <MSBuild Projects="..\DEMOs\LogForegroundWindow\LogForegroundWindow.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="LogForegroundWindow:Make">
-        <MSBuild Projects="..\DEMOs\LogForegroundWindow\LogForegroundWindow.dproj" Targets="Make"/>
-    </Target>
     <Target Name="WinXHelper">
         <MSBuild Projects="WinXHelper.dproj"/>
     </Target>
@@ -48,13 +36,13 @@
         <MSBuild Projects="WinXCorners.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="LogForegroundWindow;WinXHelper;WinXCorners"/>
+        <CallTarget Targets="WinXHelper;WinXCorners"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="LogForegroundWindow:Clean;WinXHelper:Clean;WinXCorners:Clean"/>
+        <CallTarget Targets="WinXHelper:Clean;WinXCorners:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="LogForegroundWindow:Make;WinXHelper:Make;WinXCorners:Make"/>
+        <CallTarget Targets="WinXHelper:Make;WinXCorners:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
