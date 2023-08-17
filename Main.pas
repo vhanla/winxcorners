@@ -25,6 +25,9 @@ Features requested:
 - Virtual Desktop Screen switcher
 
 CHANGELOG:
+- 23-08-16
+  fixed StayOnTop issue on FMX.PlatformWin.pas
+
 - 23-04-10
   frmMouseShake added with Animated Gif to show the mouse cursor position on Ctrl hold + mouse shake
 
