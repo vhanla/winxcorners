@@ -6,7 +6,7 @@
 
 ## Requirements
 
-    Windows 10 x86/x64
+    Windows 10/11 x86/x64
 
 Notice: This version doesn't support multiple monitors
 
@@ -14,7 +14,7 @@ WinXcorners allows you to assign events to trigger on your main monitor corners,
 
 These are the options that you can select:
 
-    Show all windows, using Task view, the new Windows 10 feature.
+    Show all windows, using Task view, the new Windows 10/11w feature.
     Show desktop
     Start Screen Saver, and
     Turn off monitors
