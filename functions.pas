@@ -18,7 +18,11 @@ interface
 
 uses
 Windows, Classes, TlHelp32, PsAPI, SysUtils, Registry, Graphics, DWMApi, PNGImage{,
-UXTHeme, Themes} {uxtheme and themes for rendering text on glass }, OleAcc, Variants;
+UXTHeme, Themes} {uxtheme and themes for rendering text on glass },
+OleAcc, Variants, DirectDraw, ActiveX;
+
+const
+    DWMAPI_DLL = 'Dwmapi.dll';
 
 type
   AccentPolicy = packed record
@@ -34,7 +38,22 @@ type
     dataSize: ULONG;
   end;
 
-function ProcessIsElevated(Process: Cardinal): Boolean;
+  _OSVERSIONINFOEXW = record
+    dwOSVersionInfoSize: DWORD;
+    dwMajorVersion: DWORD;
+    dwMinorVersion: DWORD;
+    dwBuildNumber: DWORD;
+    dwPlatformId: DWORD;
+    szCSDVersion: array [0..127] of WCHAR;     // Maintenance string for PSS usage
+    wServicePackMajor: WORD;
+    wServicePackMinor: WORD;
+    wSuiteMask: WORD;
+    wProductType: BYTE;
+    wReserved: BYTE;
+  end;
+  RTL_OSVERSIONINFOEXW = _OSVERSIONINFOEXW;
+
+//function ProcessIsElevated(Process: Cardinal): Boolean;
 function GetProcessNameFromWnd(Wnd: HWND): string;
 function isWindows10: boolean;
 function isAcrylicSupported:boolean;
@@ -51,6 +70,17 @@ function CreateSolidBrushWithAlpha(Color: TColor; Alpha: Byte = $FF): HBRUSH;
 function TaskbarTaskViewBtnClick: Boolean;
 {procedure DrawGlassText(Canvas: TCanvas; GlowSize: Integer; var Rect: TRect;
   var Text: UnicodeString; Format: DWORD); overload;}
+function isWindows11:Boolean;
+procedure EnableNCShadow(Wnd: HWND);
+procedure UseImmersiveDarkMode(Handle: HWND; Enable: Boolean);
+
+function HighDpi(value: Integer): Integer;
+
+function isHighContrast: Boolean;
+
+function DetectFullScreen3D: Boolean;
+function DetectFullScreenApp: Boolean;
+
 
   procedure SwitchToThisWindow(h1: hWnd; x: bool); stdcall;
   external user32 Name 'SwitchToThisWindow';
@@ -61,11 +91,40 @@ function AccessibleChildren(paccContainer: Pointer; iChildStart: LONGINT;
                              cChildren: LONGINT; out rgvarChildren: OleVariant;
                              out pcObtained: LONGINT): HRESULT; stdcall;
                              external 'OLEACC.DLL' name 'AccessibleChildren';
+function GetShellWindow:HWND;stdcall;
+    external user32 Name 'GetShellWindow';
+
+function RtlGetVersion(var RTL_OSVERSIONINFOEXW): LONGINT; stdcall;
+  external 'ntdll.dll' Name 'RtlGetVersion';
+function DwmGetColorizationColor(out pcrColorization: DWORD; out pfOpaqueBlend: boolean): HResult; stdcall; external DWMAPI_DLL;
+
+// For Windows 11 and above
+function AllowDarkModeForWindow(hWnd: HWND; fEnable: BOOL): BOOL; stdcall;
+  external 'uxtheme.dll' index 133;
+function GetIsImmersiveColorUsingHighContrast: BOOL; stdcall;
+  external 'uxtheme.dll' index 106;
+function IsDarkModeAllowedForWindow(hWnd: HWND): BOOL; stdcall;
+  external 'uxtheme.dll' index 137;
+procedure RefreshImmersiveColorPolicyState; stdcall;
+  external 'uxtheme.dll' index 104;
+function ShouldAppsUseDarkMode: BOOL; stdcall;
+  external 'uxtheme.dll' index 132;
+function AllowDarkModeForApp(fEnable: BOOL): BOOL; stdcall;
+  external 'uxtheme.dll' index 135;
+function SetPreferredAppMode(AppMode: Integer): Integer; stdcall;
+  external 'uxtheme.dll' index 135;
+function DarkMode: BOOL; stdcall;
+  external 'uxtheme.dll' index 136;
+
+
 
 implementation
 
+uses
+  Forms;
+
 //http://stackoverflow.com/questions/95912/how-can-i-detect-if-my-process-is-running-uac-elevated-or-not
-function ProcessIsElevated(Process: Cardinal): Boolean;
+{function ProcessIsElevated(Process: Cardinal): Boolean;
 var
   hToken, hProcess : THandle;
   pTokenInformation: Pointer;
@@ -87,7 +146,7 @@ begin
   except
     Result := False;
   end;
-end;
+end;}
 
 // This procedure assumes WinXP or superior only : suorce http://www.delphitricks.com/source-code/windows/get_exe_path_from_window_handle.html
 function GetProcessNameFromWnd(Wnd: HWND): string;
@@ -277,7 +336,7 @@ end;
 function GetAccentColor:TColor;
 var
   col: Cardinal;
-  opaque: LongBool;
+  opaque: Boolean;
   newColor: TColor;
   a,r,g,b: byte;
 begin
@@ -345,11 +404,11 @@ end;
 
 procedure SetAlphaColorPicture(const Col: TColor; const Alpha: Integer; Picture: TPicture);
 var
-  png: TPngImage;
+  png: TPNGObject;
   J: Integer;
   sl: pByteArray;
 begin
-    png := TPNGImage.CreateBlank(COLOR_RGBALPHA, 8, 10, 10);
+    png := TPNGObject.CreateBlank(COLOR_RGBALPHA, 8, 10, 10);
     try
       png.Canvas.Brush.Color := Col;
       png.Canvas.FillRect(Rect(0,0,10,10));
@@ -524,4 +583,148 @@ begin
     DrawThemeTextEx(ThemeServices.Theme[teEdit], Canvas.Handle, Part, State,
       PWideChar(Text), Length(Text), Format, @Rect, DTTOpts);
 end;}
+
+function isWindows11:Boolean;
+var
+  winver: RTL_OSVERSIONINFOEXW;
+begin
+  Result := False;
+  if ((RtlGetVersion(winver) = 0) and (winver.dwMajorVersion>=10) and (winver.dwBuildNumber > 22000))  then
+    Result := True;
+end;
+
+procedure EnableNCShadow(Wnd: HWND);
+const
+  DWMWCP_DEFAULT    = 0; // Let the system decide whether or not to round window corners
+  DWMWCP_DONOTROUND = 1; // Never round window corners
+  DWMWCP_ROUND      = 2; // Round the corners if appropriate
+  DWMWCP_ROUNDSMALL = 3; // Round the corners if appropriate, with a small radius
+  DWMWA_WINDOW_CORNER_PREFERENCE = 33; // [set] WINDOW_CORNER_PREFERENCE, Controls the policy that rounds top-level window corners
+var
+  DWM_WINDOW_CORNER_PREFERENCE: Cardinal;  
+begin
+
+  if isWindows11  then
+  begin
+
+    DWM_WINDOW_CORNER_PREFERENCE := DWMWCP_ROUNDSMALL;
+     DwmSetWindowAttribute(Wnd, DWMWA_WINDOW_CORNER_PREFERENCE, @DWM_WINDOW_CORNER_PREFERENCE, sizeof(DWM_WINDOW_CORNER_PREFERENCE));
+  end;
+end;
+
+
+procedure UseImmersiveDarkMode(Handle: HWND; Enable: Boolean);
+const
+  DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1 = 19;
+  DWMWA_USE_IMMERSIVE_DARK_MODE = 20;  
+var
+  DarkMode: DWORD;
+  Attribute: DWORD;
+begin
+//https://stackoverflow.com/a/62811758
+  DarkMode := DWORD(Enable);
+
+  if Win32MajorVersion = 10  then
+  begin
+    if Win32BuildNumber >= 17763 then
+    begin
+      Attribute := DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1;
+    if Win32BuildNumber >= 18985 then
+      Attribute := DWMWA_USE_IMMERSIVE_DARK_MODE;
+      DwmSetWindowAttribute(Handle, Attribute, @DarkMode, SizeOf(DWord));
+      SetWindowPos(Handle, 0, 0, 0, 0, 0, SWP_DRAWFRAME or SWP_NOACTIVATE or SWP_NOMOVE or SWP_NOSIZE or SWP_NOZORDER);
+    end;
+  end;
+end;
+
+function isHighContrast: Boolean;
+var
+  LHighContrast: HIGHCONTRAST;
+begin
+  LHighContrast.cbSize := SizeOf(HIGHCONTRAST);
+  SystemParametersInfo(SPI_GETHIGHCONTRAST, SizeOf(HIGHCONTRAST), @LHighContrast, 0);
+  Result := (LHighContrast.dwFlags and HCF_HIGHCONTRASTON) <> 0;
+end;
+
+function HighDpi(value: Integer): Integer;
+begin
+  Result := MulDiv(value, Screen.PixelsPerInch, 96);
+end;
+
+function DetectFullScreen3D: Boolean;
+var
+  DW: IDirectDraw7;
+  HR: HRESULT;
+begin
+  Result := False;
+
+  HR := coinitialize(nil);
+  if Succeeded(HR) then
+  begin
+    HR := DirectDrawCreateEx(PGUID(DDCREATE_EMULATIONONLY), DW, IDirectDraw7, nil);
+    if HR = DD_OK then
+    begin
+      HR := DW.TestCooperativeLevel;
+      if HR = DDERR_EXCLUSIVEMODEALREADYSET then
+        Result := True;
+    end;
+  end;
+
+  CoUninitialize;
+end;
+
+function DetectFullScreenApp: Boolean;
+var
+  curwnd: HWND;
+  wndPlm: WINDOWPLACEMENT;
+  R: TRect;
+  Mon: TMonitor;
+begin
+  Result := False;
+  curwnd := GetForegroundWindow;
+  if curwnd <= 0 then Exit;
+
+  // ignore maximized windows with caption bar
+  if GetWindowLong(curwnd, GWL_STYLE) and WS_CAPTION = WS_CAPTION then
+    Exit;
+
+  if not IsWindow(curwnd) then Exit;
+  if curwnd = GetShellWindow then Exit;
+  // Exclude WorkerW that have ClassName:SHELLDLL_DefView child since it is the Desktop hwnd
+  if FindWindowEx(curwnd, 0, 'SHELLDLL_DefView', nil) > 0 then Exit;
+  // Exclude TaskView too, since we need to trigger an action there too, for closing it
+//  if FindWindow('MultitaskingViewFrame', nil) > 0 then Exit; // win10
+//  if FindWindow('XamlExplorerHostIslandWindow', nil) > 0 then Exit; // win11
+
+  
+
+
+  Mon := Screen.MonitorFromWindow(curwnd);
+  GetWindowRect(curwnd, R);
+  GetWindowPlacement(curwnd, @wndPlm);
+  if (wndPlm.showCmd and SW_SHOWMAXIMIZED) = SW_SHOWMAXIMIZED then
+  begin
+    if ((Mon.BoundsRect.Right -Mon.BoundsRect.Left) = (R.Right - R.Left))
+    and ((Mon.BoundsRect.Bottom - Mon.BoundsRect.Top) = (R.Bottom - R.Top)) then
+      Result := True;
+  end
+  else
+  begin
+    // some applications do not set SW_SHOWMAXIMIZED flag e.g. MPC-HC media player
+    // ignore maximized when workarearect is similar (i.e. taskbar is on top, might not be the same on secondary monitor)
+//    if IsTaskbarAlwaysOnTop then
+//    begin
+//      if (Screen.MonitorCount > 1) and (Mon.Handle =
+//    if ((Screen.MonitorCount > 1) and (FindWindow('Shell_SecondaryTrayWnd', nil)<>0) and (Mon.WorkareaRect <> Mon.BoundsRect))
+//    // if there is another monitor without taskbar then
+//    or ((Screen.MonitorCount > 1) and (FindWindow('Shell_SecondaryTrayWnd', nil)=0) and (Mon.WorkareaRect = Mon.BoundsRect))
+//    then
+    begin
+      if ((Mon.BoundsRect.Right - Mon.BoundsRect.Left) = (R.Right - R.Left))
+      and ((Mon.BoundsRect.Bottom - Mon.BoundsRect.Top) = (R.BOttom - R.Top)) then
+        Result := True;
+   // end;
+    end;
+  end;
+end;
 end.
