@@ -1,5 +1,8 @@
 {
 Changelog:
+- 24-06-11
+  Fixed HighDpi drawing and positioning of components
+  Fixed Windows 11 styling
 - 19-06-10
   Fixed window resize on screen resolution change
   using WM_DISPLAYCHANGE event
@@ -42,9 +45,15 @@ unit frmSettings;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
-  XMenu, XGraphics, PNGimage, GDIPApi, GDIPObj,  XCheckbox ,XCombobox , Registry, IniFiles, DateUtils, AnimateEasing, Math;
+  Windows, Messages, SysUtils, Variants, Classes, Graphics,
+  Controls, Forms, Dialogs, ExtCtrls, StdCtrls, Menus,
+  XMenu, XGraphics, PNGimage, GDIPApi, GDIPObj,  XCheckbox ,XCombobox ,
+  Registry, IniFiles, DateUtils,
+  //AnimateEasing,
+  Math, jpeg;
+const
+  WM_DWMCOLORIZATIONCOLORCHANGED = 800;
+
 
 type
   TFadeType = (ftIn, ftOut);
@@ -53,7 +62,6 @@ type
     imgScreenShape: TImage;
     Label1: TLabel;
     Timer1: TTimer;
-    Image1: TImage;
     Timer2: TTimer;
     Timer3: TTimer;
     tmFader: TTimer;
@@ -67,7 +75,6 @@ type
     procedure Timer1Timer(Sender: TObject);
     procedure FormPaint(Sender: TObject);
     procedure OnCheckBoxClick(Sender: TObject);
-    procedure Image1Click(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure Timer2Timer(Sender: TObject);
     procedure Timer3Timer(Sender: TObject);
@@ -110,7 +117,7 @@ var
 implementation
 
 uses
-  functions, main;
+  functions, main, Types;
 {$R *.dfm}
 
 
@@ -153,9 +160,9 @@ begin
     tpBottom:
     begin
       repeat
-        if Top < Screen1.Height then  Top := Top + 50;
+        if Top < (Screen1.Bottom - Screen1.Top) then  Top := Top + 50;
         delay(10);
-      until (Top >= Screen1.Height) ;//or ( Form2.Visible);
+      until (Top >= (Screen1.Bottom - Screen1.Top)) ;//or ( Form2.Visible);
     end;
     tpRight:
     begin
@@ -187,8 +194,11 @@ begin
 end;
 
 procedure TfrmTrayPopup.FormCreate(Sender: TObject);
-
 begin
+  if not SystemUsesLightTheme then
+    UseImmersiveDarkMode(Handle, True);
+
+  EnableNCShadow(Handle);
 
   // initialize the custom components before using them, it will be destroyed on OnDestroy
   InitCustomComponents;
@@ -247,14 +257,47 @@ begin
   with XPopupMenu.Items.Add do
   begin
     Name := 'N6';
-    Text := 'Custom Command';
+    Text := 'Start Menu';
     OnClick := XMenuItemClick;
-    Visible := False;
+    Visible := True;
   end;
 
   with XPopupMenu.Items.Add do
   begin
     Name := 'N7';
+    Text := 'Custom Command 1';
+    OnClick := XMenuItemClick;
+    Visible := False;
+  end;
+
+    with XPopupMenu.Items.Add do
+  begin
+    Name := 'N7';
+    Text := 'Custom Command 2';
+    OnClick := XMenuItemClick;
+    Visible := False;
+  end;
+
+    with XPopupMenu.Items.Add do
+  begin
+    Name := 'N7';
+    Text := 'Custom Command 3';
+    OnClick := XMenuItemClick;
+    Visible := False;
+  end;
+
+    with XPopupMenu.Items.Add do
+  begin
+    Name := 'N7';
+    Text := 'Custom Command 4';
+    OnClick := XMenuItemClick;
+    Visible := False;
+  end;
+
+
+  with XPopupMenu.Items.Add do
+  begin
+    Name := 'N8';
     Text := 'Hide Other Windows';
     OnClick := XMenuItemClick;
   end;
@@ -325,8 +368,14 @@ begin
   else
   begin
     if SystemUsesLightTheme then
-      Canvas.Brush.Handle := CreateSolidBrushWithAlpha($dddddd, 200)    else
-      Canvas.Brush.Handle := CreateSolidBrushWithAlpha($222222, 200);
+      Canvas.Brush.Handle := CreateSolidBrushWithAlpha($dddddd, 200)
+    else
+    begin
+      if isWindows11 then
+        Canvas.Brush.Handle := CreateSolidBrushWithAlpha(BlendColors($2d2d2d, clBlack,25), 200)
+      else
+        Canvas.Brush.Handle := CreateSolidBrushWithAlpha($222222, 200);
+    end;
   end;
   Canvas.FillRect(Rect(0,0,Width,Height));
 end;
@@ -350,10 +399,11 @@ begin
   FormStyle := fsNormal;
   //Screen1 := GetRectOfPrimaryMonitor(False);
   GetTaskbarMonitor;
-  imgScreenShape.Height := 96;
-  imgScreenShape.Width := Trunc(Screen1.Width / Screen1.Height * 96);
+  imgScreenShape.Height := HighDpi(96);
+  imgScreenShape.Width := HighDpi(Trunc((Screen1.Right - Screen1.Left) / (Screen1.Bottom - Screen1.Top) * 96));
   imgScreenShape.Left := (Width - imgScreenShape.Width) div 2;
   imgScreenShape.Top := (Height - imgScreenShape.Height) div 2;
+
 
 {  if tempDisabled then
     Label1.Caption := 'off'
@@ -430,18 +480,6 @@ begin
   end;
 end;
 
-procedure TfrmTrayPopup.Image1Click(Sender: TObject);
-begin
-  Image1.Visible := False;
-
-  frmTrayPopup.XCombo1.Visible := True;
-  frmTrayPopup.XCombo2.Visible := True;
-  frmTrayPopup.XCombo3.Visible := True;
-  frmTrayPopup.XCombo4.Visible := True;
-  frmTrayPopup.XCheckbox1.Visible := True;
-  frmTrayPopup.XComboAsLabel.Visible := True;
-end;
-
 procedure TfrmTrayPopup.InitCustomComponents;
 begin
   XCheckbox1 := TXCheckbox.Create(Self);
@@ -451,12 +489,12 @@ begin
     ControlState := [];
     Color := GetAccentColor;
     DisabledColor := $dddddd;
-    Left := 100;
-    Top := Self.Height - 30;
+    Left := HighDpi(100);
+    Top := Self.Height - HighDpi(30);
     Checked := True;
     OnClick := OnCheckBoxClick;
-    Width := Round(Width * (Self.PixelsPerInch/96));
-    Height := Round(Height * (Self.PixelsPerInch/96));
+//    Width := Round(Width * (Self.PixelsPerInch/96));
+//    Height := Round(Height * (Self.PixelsPerInch/96));
   end;
 
   XCombo1 := TXCombobox.Create(Self);
@@ -465,10 +503,12 @@ begin
     Parent := Self;
     Caption := 'All Windows';
     ControlState := [];
+    Font.Name := 'Segoe UI';
+//    Font.Size := 9;
     Color := GetAccentColor;
     DisabledColor := $dddddd;
-    Left := 14;
-    Top := 35;
+    Left := HighDpi(14);
+    Top := HighDpi(35);
     Font.Name := Self.Font.Name;
     OnClick := OnCornerOptionClick;
   end;
@@ -479,11 +519,13 @@ begin
     Parent := Self;
     Caption := 'All Windows';
     ControlState := [];
+    Font.Name := 'Segoe UI';
+//    Font.Size := 9;
     Color := GetAccentColor;
     DisabledColor := $dddddd;
     //Left := Self.Width - 167 - 14;
-    Left := Self.Width - Width - 14;
-    Top := 35;
+    Left := Self.Width - Width - HighDpi(14);
+    Top := HighDpi(35);
     Font.Name := Self.Font.Name;
     OnClick := OnCornerOptionClick;
   end;
@@ -494,10 +536,12 @@ begin
     Parent := Self;
     Caption := 'All Windows';
     ControlState := [];
+    Font.Name := 'Segoe UI';
+//    Font.Size := 9;
     Color := GetAccentColor;
     DisabledColor := $dddddd;
-    Left := 14;
-    Top := Self.Height - 70;
+    Left := HighDpi(14);
+    Top := Self.Height - HighDpi(70);
     Font.Name := Self.Font.Name;
     OnClick := OnCornerOptionClick;
   end;
@@ -508,11 +552,13 @@ begin
     Parent := Self;
     Caption := 'All Windows';
     ControlState := [];
+    Font.Name := 'Segoe UI';
+//    Font.Size := 9;
     Color := GetAccentColor;
     DisabledColor := $dddddd;
     //Left := Self.Width - 167 - 14;
-    Left := Self.Width - Width - 14;
-    Top := Self.Height - 70;
+    Left := Self.Width - Width - HighDpi(14);
+    Top := Self.Height - HighDpi(70);
     Font.Name := Self.Font.Name;
     OnClick := OnCornerOptionClick;
   end;
@@ -526,10 +572,10 @@ begin
     Color := GetAccentColor;
     DisabledColor := $dddddd;
     Enabled:= False;
-    Width := 167;
-    Height := 31;//44;
+    Width := HighDpi(167);
+    Height := HighDpi(31);//44;
     Left := XCheckbox1.Left + XCheckbox1.Width;
-    Top := Self.Height - 36;
+    Top := Self.Height - HighDpi(36);
     Font.Name := Self.Font.Name;
   end;
 
@@ -559,9 +605,9 @@ end;
 
 procedure TfrmTrayPopup.OnCheckBoxClick(Sender: TObject);
 begin
-  if Sender is TXCheckbox then
+  if (Sender is TXCheckbox) then
   begin
-    if Sender = XCheckbox1 then
+    if (Sender = XCheckbox1) then
     begin
       tempDisabled := not TXCheckbox(Sender).Checked;
       if tempDisabled then
@@ -574,10 +620,12 @@ begin
       else
       begin
         XComboAsLabel.Caption := 'Hot corners enabled';
-        SetAlphaColorPicture(GetAccentColor, 255, imgScreenShape.Picture);
+        SetAlphaColorPicture(GetAccentColor, 250, imgScreenShape.Picture);
         frmMain.UpdateTrayIcon();
       end;
+
     end;
+    
   end;
 
 end;
@@ -603,7 +651,7 @@ begin
     begin
       y := Self.Top + TXCombobox(Sender).Top - totalMenuHeight - 4;
     end;
-
+//      y := HighDpi(y);
     CornerOption := TXCombobox(Sender);
     XPopupMenu.Popup(x-1, y);
   end;
@@ -787,7 +835,7 @@ begin
   if tempDisabled then
     SetAlphaColorPicture(GetAccentColor, 75, imgScreenShape.Picture)
   else
-    SetAlphaColorPicture(GetAccentColor, 255, imgScreenShape.Picture);
+    SetAlphaColorPicture(GetAccentColor, 250, imgScreenShape.Picture);
 end;
 
 procedure TfrmTrayPopup.UpdatePosition;
@@ -799,27 +847,27 @@ begin
   begin
     GetWindowRect(Shell_TrayWnd, Shell_TrayWndRect);
       if (Shell_TrayWndRect.Left=0)
-      and(Shell_TrayWndRect.Right=Screen1.Width)
+      and(Shell_TrayWndRect.Right=(Screen1.Right - Screen1.Left))
       and(Shell_TrayWndRect.Top>0)
       then
       begin
       //ShowMessage('está abajo')
       //posicionamos a la derecha en el systray
-      Left:=Screen1.Width-Width-10;
+      Left:=(Screen1.Right - Screen1.Left)-Width-10;
       if Left<1 then Left:=10;
       WinPosition := tpBottom;
-      MaxTop:=Screen1.Height-Height-Shell_TrayWndRect.Bottom+Shell_TrayWndRect.Top;//-10;
+      MaxTop:=(Screen1.Bottom - Screen1.Top)-Height-Shell_TrayWndRect.Bottom+Shell_TrayWndRect.Top;//-10;
       Top := MaxTop + 20;
       if Top<1 then Top:=10;
       end
       //arriba
       else if (Shell_TrayWndRect.Left=0)
-      and(Shell_TrayWndRect.Right=Screen1.Width)
+      and(Shell_TrayWndRect.Right=(Screen1.Right - Screen1.Left))
       and(Shell_TrayWndRect.Top<1)
       then
       begin
       //ShowMessage('Está arriba');
-      Left:=Screen1.Width-Width-10;
+      Left:=(Screen1.Right - Screen1.Left)-Width-10;
       if Left<1 then Left:=10;
       WinPosition := tpTop;
       MaxTop := Shell_TrayWndRect.Bottom; //+10;
@@ -829,7 +877,7 @@ begin
       //izquierda
       else if (Shell_TrayWndRect.Left<1)
       and (Shell_TrayWndRect.Top=0)
-      and(Shell_TrayWndRect.Bottom=Screen1.Height)
+      and(Shell_TrayWndRect.Bottom=(Screen1.Bottom - Screen1.Top))
       then
       begin
       //ShowMessage('Está a la izquierda')
@@ -837,13 +885,13 @@ begin
       MaxLeft := Shell_TrayWndRect.Right; //+10;
       Left := MaxLeft - 20;
       if Left<1 then Left:=10;
-      Top:=Screen1.Height-Height-10;
+      Top:=(Screen1.Bottom - Screen1.Top)-Height-10;
       if Top<1 then Top:=10;
       end
       //derecha
       else if (Shell_TrayWndRect.Left>0)
       and(Shell_TrayWndRect.Top=0)
-      and(Shell_TrayWndRect.Bottom=Screen1.Height)
+      and(Shell_TrayWndRect.Bottom=(Screen1.Bottom - Screen1.Top))
       then
       begin
       //ShowMessage('Está a la derecha');
@@ -851,7 +899,7 @@ begin
       MaxLeft := Shell_TrayWndRect.Left-Width; //-10;
       Left := MaxLeft + 20;
       if Left<1 then Left:=10;
-      Top:=Screen1.Height-Height-10;
+      Top:=(Screen1.Bottom - Screen1.Top)-Height-10;
       if Top<1 then Top:=10;
       end;
   end;
@@ -862,16 +910,29 @@ end;
 // It will update values
 procedure TfrmTrayPopup.UpdateXCombos;
 begin
-  if not XPopupMenu.Items[5].Visible then
+  if not XPopupMenu.Items[6].Visible
+  then
   begin
-    if XCombo1.Caption = 'Custom Command' then
-      XCombo1.Caption := '';
-    if XCombo2.Caption = 'Custom Command' then
-      XCombo2.Caption := '';
-    if XCombo3.Caption = 'Custom Command' then
-      XCombo3.Caption := '';
-    if XCombo4.Caption = 'Custom Command' then
-      XCombo4.Caption := '';
+    if XCombo1.Caption = 'Custom Command 1' then XCombo1.Caption := '';
+    if XCombo2.Caption = 'Custom Command 1' then XCombo2.Caption := '';
+    if XCombo3.Caption = 'Custom Command 1' then XCombo3.Caption := '';
+    if XCombo4.Caption = 'Custom Command 1' then XCombo4.Caption := '';
+
+    if XCombo1.Caption = 'Custom Command 2' then XCombo1.Caption := '';
+    if XCombo2.Caption = 'Custom Command 2' then XCombo2.Caption := '';
+    if XCombo3.Caption = 'Custom Command 2' then XCombo3.Caption := '';
+    if XCombo4.Caption = 'Custom Command 2' then XCombo4.Caption := '';
+
+    if XCombo1.Caption = 'Custom Command 3' then XCombo1.Caption := '';
+    if XCombo2.Caption = 'Custom Command 3' then XCombo2.Caption := '';
+    if XCombo3.Caption = 'Custom Command 3' then XCombo3.Caption := '';
+    if XCombo4.Caption = 'Custom Command 3' then XCombo4.Caption := '';
+
+    if XCombo1.Caption = 'Custom Command 4' then XCombo1.Caption := '';
+    if XCombo2.Caption = 'Custom Command 4' then XCombo2.Caption := '';
+    if XCombo3.Caption = 'Custom Command 4' then XCombo3.Caption := '';
+    if XCombo4.Caption = 'Custom Command 4' then XCombo4.Caption := '';
+
   end;
 end;
 
