@@ -3,8 +3,8 @@ unit osdgui;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, DWMApi, ActiveX, GDIPapi, GDIPObj;
+  Windows, Messages, SysUtils, Variants, Classes, Graphics,
+  Controls, Forms, Dialogs, StdCtrls, DWMApi, ActiveX, GDIPapi, GDIPObj;
 
 type
   TfrmOSD = class(TForm)
@@ -29,10 +29,11 @@ uses main;
 type
   TFixedStreamAdapter = class(TStreamAdapter)
   public
-    function Stat(out statstg: TStatStg; grfStatFlag: DWORD): HResult; override; stdcall;
+//    function Stat(out statstg: TStatStg; grfStatFlag: DWORD): HResult; override; stdcall;
+    function Stat(out statstg: TStatStg; grfStatFlag: Longint): HResult; virtual; stdcall;
   end;
 
-function TFixedStreamAdapter.Stat(out statstg: TStatStg; grfStatFlag: DWORD): HResult;
+function TFixedStreamAdapter.Stat(out statstg: TStatStg; grfStatFlag: Longint): HResult;
 begin
   Result := inherited Stat(statstg, grfStatFlag);
   statstg.pwcsName := nil;
