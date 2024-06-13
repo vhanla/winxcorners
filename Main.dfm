@@ -1,19 +1,23 @@
 object frmMain: TfrmMain
   Left = 0
   Top = 0
+  Margins.Left = 2
+  Margins.Top = 2
+  Margins.Right = 2
+  Margins.Bottom = 2
   Caption = 'frmMain'
-  ClientHeight = 319
-  ClientWidth = 490
+  ClientHeight = 343
+  ClientWidth = 528
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
-  OldCreateOrder = False
+  OldCreateOrder = True
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  PixelsPerInch = 96
+  PixelsPerInch = 144
   TextHeight = 13
   object tmrHotSpot: TTimer
     Enabled = False
@@ -40,6 +44,13 @@ object frmMain: TfrmMain
     object N1: TMenuItem
       Caption = '-'
     end
+    object tmFullScreen: TMenuItem
+      Caption = 'Do Nothing on Full Screen '
+      OnClick = tmFullScreenClick
+    end
+    object tmLine2: TMenuItem
+      Caption = '-'
+    end
     object Exit1: TMenuItem
       Caption = 'E&xit'
       OnClick = Exit1Click
@@ -51,9 +62,5 @@ object frmMain: TfrmMain
     OnTimer = tmrDelayTimer
     Left = 184
     Top = 24
-  end
-  object MadExceptionHandler1: TMadExceptionHandler
-    Left = 240
-    Top = 168
   end
 end

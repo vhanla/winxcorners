@@ -25,6 +25,9 @@ Features requested:
 - Virtual Desktop Screen switcher
 
 CHANGELOG:
+- 24-06-09
+  Add VirtualDesktop support for Windows 10 and 11
+  Add DarkMode support for Windows 10 and 11 (partial)
 - 19-06-06
   Detect DarkMode/LightMode Windows 10 May Update 2019
 - 18-09-03
@@ -79,9 +82,10 @@ unit Main;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, ShellApi, Vcl.Menus, Registry, System.Generics.Collections,
-  madExceptVcl;
+  Windows, Messages, SysUtils, Variants, Classes, Graphics,
+  Controls, Forms, Dialogs, ExtCtrls, ShellApi, Menus, Registry, //System.Generics.Collections,
+  VirtualDesktopManager
+  ;
 
 const
   WM_DPICHANGED = $02E0;
@@ -103,7 +107,8 @@ type
     About1: TMenuItem;
     tmrDelay: TTimer;
     Advanced1: TMenuItem;
-    MadExceptionHandler1: TMadExceptionHandler;
+    tmFullScreen: TMenuItem;
+    tmLine2: TMenuItem;
     procedure tmrHotSpotTimer(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -112,12 +117,13 @@ type
     procedure emporarydisabled1Click(Sender: TObject);
     procedure tmrDelayTimer(Sender: TObject);
     procedure Advanced1Click(Sender: TObject);
+    procedure tmFullScreenClick(Sender: TObject);
   private
     { Private declarations }
     iconData: TNotifyIconData;
     SystrayIcon: TIcon;
     OnHotSpot: Boolean;
-    hotActionStr: String;
+    hotActionStr: string;
     hotActionDelay: Integer;
     hotActionDelayCounter: Integer;
     FRegisteredSessionNotification: Boolean;
@@ -130,6 +136,10 @@ type
     procedure WndProc(var Msg: TMessage); override;
     //procedure WMCopyData(var Msg: TMessage); message WM_COPYDATA;
     procedure HotSpotAction(MPos: TPoint);
+
+    procedure CurrentDesktopChanged(Sender: TObject; OldDesktop, NewDesktop: TVirtualDesktop);
+    procedure CurrentDesktopChangedW11(Sender: TObject; OldDesktop, NewDesktop: TVirtualDesktopW11);
+
   public
     { Public declarations }
     procedure CreateParams(var Params: TCreateParams); override;
@@ -144,15 +154,15 @@ var
 
 //  Screens : TObjectList<TScreens>;
 
-  procedure SwitchToThisWindow(h1: hWnd; x: bool); stdcall;
-  external user32 Name 'SwitchToThisWindow';
+procedure SwitchToThisWindow(h1: hWnd; x: bool); stdcall;
+external user32 Name 'SwitchToThisWindow';
 //  procedure RunHook(Handle: HWND); cdecl; external 'WinXHelper.dll' name 'RunHook';
 //  procedure KillHook; cdecl; external 'WinXHelper.dll' name 'KillHook';
 
 implementation
 
 uses
-  functions, frmSettings, osdgui, frmAdvanced;
+  functions, frmSettings, osdgui, frmAdvanced, Types;
 {$R *.dfm}
 
 const
@@ -171,6 +181,7 @@ begin
     Application.Terminate;
   end;
 
+
   SetPriorityClass(GetCurrentProcess, $4000);
 
   wmTaskbarRestartMsg := RegisterWindowMessage('TaskbarCreated');
@@ -182,9 +193,22 @@ begin
   AutoStartState;
 
   //Screens := TObjectList<TScreens>.Create;
-  FRegisteredSessionNotification := WTSRegisterSessionNotification(Handle, NOTIFY_FOR_THIS_SESSION);
+//  FRegisteredSessionNotification := WTSRegisterSessionNotification(Handle, NOTIFY_FOR_THIS_SESSION);
 
 //  RunHook(Handle);
+  if Win32MajorVersion > 10 then
+  begin
+    if Win32BuildNumber >= 22000 then
+      DesktopManagerW11.OnCurrentDesktopChanged := CurrentDesktopChangedW11
+    else
+      DesktopManager.OnCurrentDesktopChanged := CurrentDesktopChanged;
+  end;
+
+  if not SystemUsesLightTheme then
+  begin
+    SetPreferredAppMode(1);
+    DarkMode;
+  end;
 end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
@@ -197,21 +221,46 @@ begin
 
   SystrayIcon.Free;
 
-  if FRegisteredSessionNotification then
-    WTSUnRegisterSessionNotification(Handle);
+//  if FRegisteredSessionNotification then
+//    WTSUnRegisterSessionNotification(Handle);
 end;
 
 procedure TfrmMain.HotAction(hAction: string);
 // this neat fun method comes from http://stackoverflow.com/questions/12960702/enum-from-string
 type
-  THotAction = (haWindows, haDesktop, haScreenSaver, haMonitorOff, haActionCenter, haCustomCmd, haToggleOtherWindows, haNoAction);
+  THotAction = (
+    haWindows,
+    haDesktop,
+    haScreenSaver,
+    haMonitorOff,
+    haActionCenter,
+    haStartMenu,
+    haCustomCmd,
+    haCustomCmd2,
+    haCustomCmd3,
+    haCustomCmd4,
+    haToggleOtherWindows,
+    haNoAction);
 const
-  HotActions: Array[THotAction] of string = ('All Windows','Desktop','Screen Saver','Monitors Off','Action Center', 'Custom Command', 'Hide Windows', '');
+  HotActions: array[THotAction]
+  of string = (
+    'All Windows',
+    'Desktop',
+    'Screen Saver',
+    'Monitors Off',
+    'Action Center',
+    'Start Menu',
+    'Custom Command 1',
+    'Custom Command 2',
+    'Custom Command 3',
+    'Custom Command 4',
+    'Hide Windows',
+    '');
 
   function GetAction(const str: string): THotAction;
   begin
     for Result := Low(Result) to High(Result) do
-      if HotActions[Result]=str then
+      if HotActions[Result] = str then
         Exit;
     // if nothing matches or is empty we return the no action
     Result := haNoAction;
@@ -222,7 +271,13 @@ const
 //  procid: integer;
 begin
   if frmTrayPopup.tempDisabled then
-  Exit;
+    Exit;
+
+  if frmAdvSettings.chkFullScreen.Checked then
+  begin
+    if DetectFullScreen3D or DetectFullScreenApp then Exit;
+  end;
+
 
   // avoid usage if mouse is in use (buttons down e.g.)
   // if value is negative, it means is in use (aka held down)
@@ -233,82 +288,111 @@ begin
     Exit;}
   case GetAction(hAction) of
     haWindows:
-    begin
+      begin
       // let's first attempt using the taskview button
 //      if not TaskbarTaskViewBtnClick then
-      begin
+        begin
         //this method works but ironically fails because it only works if app is elevated :V
         //GetWindowThreadProcessId(GetForegroundWindow, @procid);
         //if ProcessIsElevated(OpenProcess(PROCESS_ALL_ACCESS, False, procid)) then
           //SwitchToThisWindow(Application.Handle, True);
 
         //if GetForegroundWindow <> FindWindow('MultitaskingViewFrame','Vista Tareas') then
-        if GetForegroundWindow <> FindWindow('MultitaskingViewFrame',nil) then
-          SwitchToThisWindow(Application.Handle, True);
+          if GetForegroundWindow <> FindWindow('MultitaskingViewFrame', nil) then
+            SwitchToThisWindow(Application.Handle, True);
 
-        keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),0,0);
-        Sleep(10);
-        keybd_event(VK_TAB,MapVirtualKey(VK_TAB,0),0,0);
-        Sleep(10);
-        keybd_event(VK_TAB,MapVirtualKey(VK_TAB,0),KEYEVENTF_KEYUP,0);
-        Sleep(100);
-        keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),KEYEVENTF_KEYUP,0);
-        Sleep(100);
+          keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), 0, 0);
+          Sleep(10);
+          keybd_event(VK_TAB, MapVirtualKey(VK_TAB, 0), 0, 0);
+          Sleep(10);
+          keybd_event(VK_TAB, MapVirtualKey(VK_TAB, 0), KEYEVENTF_KEYUP, 0);
+          Sleep(100);
+          keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), KEYEVENTF_KEYUP, 0);
+          Sleep(100);
+        end;
       end;
-    end;
     haActionCenter:
       begin
         SwitchToThisWindow(Application.Handle, True);
-        keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),0,0);
+        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), 0, 0);
         Sleep(10);
-        keybd_event(Ord('A'),MapVirtualKey(Ord('A'),0),0,0);
+        keybd_event(Ord('A'), MapVirtualKey(Ord('A'), 0), 0, 0);
         Sleep(10);
-        keybd_event(Ord('A'),MapVirtualKey(Ord('A'),0),KEYEVENTF_KEYUP,0);
+        keybd_event(Ord('A'), MapVirtualKey(Ord('A'), 0), KEYEVENTF_KEYUP, 0);
         Sleep(100);
-        keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),KEYEVENTF_KEYUP,0);
+        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), KEYEVENTF_KEYUP, 0);
         Sleep(100);
       end;
     haDesktop:
-    begin
-      SwitchToThisWindow(Application.Handle, True);
-      keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),0,0);
-      Sleep(10);
-      keybd_event(Ord('D'),MapVirtualKey(Ord('D'),0),0,0);
-      Sleep(10);
-      keybd_event(Ord('D'),MapVirtualKey(Ord('D'),0),KEYEVENTF_KEYUP,0);
-      Sleep(100);
-      keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),KEYEVENTF_KEYUP,0);
-      Sleep(100);
-    end;
-    haScreenSaver:
-    begin
-      SendMessage(Application.Handle, WM_SYSCOMMAND, SC_SCREENSAVE, 0);
-    end;
-    haMonitorOff:
-    begin
-      SendMessage(Application.Handle, WM_SYSCOMMAND, SC_MONITORPOWER,2);
-    end;
-    haCustomCmd:
-    begin
-      if frmAdvSettings.chkCustom.Checked then
       begin
-        if frmAdvSettings.chkHidden.Checked then
-          ShellExecute(0, 'OPEN', PChar(frmAdvSettings.edCommand.Text),PChar(frmAdvSettings.edParams.Text),'', SW_HIDE)
-        else
-          ShellExecute(0, 'OPEN', PChar(frmAdvSettings.edCommand.Text),PChar(frmAdvSettings.edParams.Text),'', SW_SHOWNORMAL);
-
+        SwitchToThisWindow(Application.Handle, True);
+        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), 0, 0);
+        Sleep(10);
+        keybd_event(Ord('D'), MapVirtualKey(Ord('D'), 0), 0, 0);
+        Sleep(10);
+        keybd_event(Ord('D'), MapVirtualKey(Ord('D'), 0), KEYEVENTF_KEYUP, 0);
+        Sleep(100);
+        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), KEYEVENTF_KEYUP, 0);
+        Sleep(100);
       end;
-    end;
+    haScreenSaver:
+      begin
+        SendMessage(Application.Handle, WM_SYSCOMMAND, SC_SCREENSAVE, 0);
+      end;
+    haMonitorOff:
+      begin
+        SendMessage(Application.Handle, WM_SYSCOMMAND, SC_MONITORPOWER, 2);
+      end;
+    haCustomCmd:
+      begin
+        if frmAdvSettings.chkCustom.Checked then
+        begin
+          if frmAdvSettings.chkHidden.Checked then
+            ShellExecute(0, 'OPEN', PChar(cmdcli[0]), PChar(cmdarg[0]), '', SW_HIDE)
+          else
+            ShellExecute(0, 'OPEN', PChar(cmdcli[0]), PChar(cmdarg[0]), '', SW_SHOWNORMAL);
+        end;
+      end;
+    haCustomCmd2:
+      begin
+        if frmAdvSettings.chkCustom.Checked then
+        begin
+          if frmAdvSettings.chkHidden.Checked then
+            ShellExecute(0, 'OPEN', PChar(cmdcli[1]), PChar(cmdarg[1]), '', SW_HIDE)
+          else
+            ShellExecute(0, 'OPEN', PChar(cmdcli[1]), PChar(cmdarg[1]), '', SW_SHOWNORMAL);
+        end;
+      end;
+    haCustomCmd3:
+      begin
+        if frmAdvSettings.chkCustom.Checked then
+        begin
+          if frmAdvSettings.chkHidden.Checked then
+            ShellExecute(0, 'OPEN', PChar(cmdcli[2]), PChar(cmdarg[2]), '', SW_HIDE)
+          else
+            ShellExecute(0, 'OPEN', PChar(cmdcli[2]), PChar(cmdarg[2]), '', SW_SHOWNORMAL);
+        end;
+      end;
+    haCustomCmd4:
+      begin
+        if frmAdvSettings.chkCustom.Checked then
+        begin
+          if frmAdvSettings.chkHidden.Checked then
+            ShellExecute(0, 'OPEN', PChar(cmdcli[3]), PChar(cmdarg[3]), '', SW_HIDE)
+          else
+            ShellExecute(0, 'OPEN', PChar(cmdcli[3]), PChar(cmdarg[3]), '', SW_SHOWNORMAL);
+        end;
+      end;
     haToggleOtherWindows:
-    begin
-      keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),0,0);
-      Sleep(10);
-      keybd_event(VK_HOME,MapVirtualKey(VK_HOME,0),0,0);
-      Sleep(10);
-      keybd_event(VK_HOME,MapVirtualKey(VK_HOME,0),KEYEVENTF_KEYUP,0);
-      Sleep(100);
-      keybd_event(VK_LWIN,MapVirtualKey(VK_LWIN,0),KEYEVENTF_KEYUP,0);
-      Sleep(100);
+      begin
+        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), 0, 0);
+        Sleep(10);
+        keybd_event(VK_HOME, MapVirtualKey(VK_HOME, 0), 0, 0);
+        Sleep(10);
+        keybd_event(VK_HOME, MapVirtualKey(VK_HOME, 0), KEYEVENTF_KEYUP, 0);
+        Sleep(100);
+        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), KEYEVENTF_KEYUP, 0);
+        Sleep(100);
 
       // to minimize, not yet included xD
       {Shell_SecondaryTrayWnd := FindWindow('Shell_SecondaryTrayWnd', nil);
@@ -316,20 +400,116 @@ begin
       and (GetForegroundWindow <> Shell_SecondaryTrayWnd)
        then
         PostMessage(GetForegroundWindow, WM_SYSCOMMAND, SC_MINIMIZE, 0);}
-    end;
+      end;
+    haStartMenu:
+      begin
+        Perform(WM_SYSCOMMAND, SC_TASKLIST, 0);
+      end;
     haNoAction:
-    begin
-    end;
+      begin
+      end;
   end;
 end;
 
 procedure TfrmMain.HotSpotAction(MPos: TPoint);
 const
-  HotArea = 10;
+  HOTAREA = 10;
 var
-  Screen1 : TRect;
+  Screen1: TRect;
   I: Integer;
+{  HotSpotDetected: Boolean;
+
+  function IsHotSpotActive: Boolean;
+  begin
+    Result := (GetKeyState(VK_LBUTTON) >= 0) and (GetKeyState(VK_MBUTTON) >= 0) and (GetKeyState(VK_RBUTTON) >= 0);
+  end;
+
+  procedure PerformHotAction(ActionStr: string; Left, Top: Integer; IsFullScreen: Boolean);
+  begin
+    if Trim(ActionStr) = '' then Exit;
+    if not frmTrayPopup.XCheckbox1.Checked then Exit;
+    if not IsHotSpotActive then Exit;
+
+    if frmAdvSettings.chkDelayGlobal.Checked then
+    begin
+      hotActionDelay := StrToInt(frmAdvSettings.valDelayGlobal.Text);
+      hotActionDelayCounter := 0;
+      tmrDelay.Enabled := True;
+      if frmAdvSettings.chkShowCount.Checked then
+      begin
+        frmOSD.DrawBubble(IntToStr(hotActionDelay - hotActionDelayCounter));
+        frmOSD.Left := Left;
+        frmOSD.Top := Top;
+        if IsFullScreen then
+        begin
+          if not DetectFullScreenApp then
+            frmOSD.Show;
+        end
+        else
+          frmOSD.Show;
+      end;
+    end
+    else
+      HotAction(ActionStr);
+  end;}
 begin
+{  HotSpotDetected := False;
+  for I := 0 to Screen.MonitorCount - 1 do
+  begin
+    Screen1 := Screen.Monitors[I].BoundsRect;
+    // inside current monitor boundaries
+    if (MPos.X >= Screen1.Left) and (MPos.X < Screen1.Right) and (MPos.Y >= Screen1.Top) and (MPos.Y < Screen1.Bottom) then
+    begin
+      if (MPos.X < Screen1.Left + HotArea) and (MPos.Y < Screen1.Top + HotArea) then
+      begin
+        if not OnHotSpot then
+        begin
+          OnHotSpot := True;
+          PerformHotAction(frmTrayPopup.XCombo1.Caption, Screen1.Left, Screen1.Top, frmAdvSettings.chkFullScreen.Checked);
+        end;
+        HotSpotDetected := True;
+        Break;
+      end
+      else if (MPos.X > Screen1.Right - HOTAREA) and (MPos.Y < Screen1.Top + HOTAREA) then
+      begin
+        if not OnHotSpot then
+        begin
+          OnHotSpot := True;
+          PerformHotAction(frmTrayPopup.XCombo2.Caption, Screen1.Right - frmOSD.Width, Screen1.Top, frmAdvSettings.chkFullScreen.Checked);
+        end;
+        HotSpotDetected := True;
+        Break;
+      end
+      else if (MPos.X < Screen1.Left + HOTAREA) and (MPos.Y > Screen1.Bottom - HOTAREA) then
+      begin
+        if not OnHotSpot then
+        begin
+          OnHotSpot := True;
+          PerformHotAction(frmTrayPopup.XCombo3.Caption, Screen1.Left, Screen1.Bottom - frmOSD.Height, frmAdvSettings.chkFullScreen.Checked);
+        end;
+        HotSpotDetected := True;
+        Break;
+      end
+      else if (MPos.X > Screen1.Right - HOTAREA) and (MPos.Y > Screen1.Bottom - HOTAREA) then
+      begin
+        if not OnHotSpot then
+        begin
+          OnHotSpot := True;
+          PerformHotAction(frmTrayPopup.XCombo4.Caption, Screen1.Right - frmOSD.Width, Screen1.Bottom - frmOSD.Height, frmAdvSettings.chkFullScreen.Checked);
+        end;
+        HotSpotDetected := True;
+        Break;
+      end;
+    end;
+  end;
+
+  if not HotSpotDetected then
+  begin
+    OnHotSpot := False;
+    frmOSD.Hide;
+  end;
+
+  exit;}
 //Screens.Clear;
   for I := 0 to Screen.MonitorCount - 1 do
   begin
@@ -338,17 +518,17 @@ begin
     Screen1 := Screen.Monitors[I].BoundsRect;
     //Screen1 := GetRectOfPrimaryMonitor(False);
     if (MPos.X >= Screen1.Left)
-    and (MPos.X < Screen1.Right)
-    and (MPos.Y >= Screen1.Top)
-    and (MPos.Y < Screen1.Bottom)
-    then
+      and (MPos.X < Screen1.Right)
+      and (MPos.Y >= Screen1.Top)
+      and (MPos.Y < Screen1.Bottom)
+      then
     begin
 
 
       if (MPos.X >= Screen1.Left)
-      and (MPos.X < Screen1.Left+HotArea)
-      and (MPos.Y >= Screen1.Top)
-      and (MPos.Y < Screen1.Top+HotArea) then
+        and (MPos.X < Screen1.Left + HotArea)
+        and (MPos.Y >= Screen1.Top)
+        and (MPos.Y < Screen1.Top + HotArea) then
       begin
         if not OnHotSpot then
         begin
@@ -359,9 +539,9 @@ begin
           // avoid usage if mouse is in use (buttons down e.g.)
           // if value is negative, it means is in use (aka held down)
           if (GetKeyState(VK_LBUTTON) < 0)
-          or (GetKeyState(VK_MBUTTON) < 0)
-          or (GetKeyState(VK_RBUTTON) < 0)
-          then
+            or (GetKeyState(VK_MBUTTON) < 0)
+            or (GetKeyState(VK_RBUTTON) < 0)
+            then
             Exit;
 
           if frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayTopLeft.Checked then
@@ -377,7 +557,13 @@ begin
               frmOSD.DrawBubble(IntToStr(hotActionDelay - hotActionDelayCounter));
               frmOSD.Left := Screen1.Left;
               frmOSD.Top := Screen1.Top;
-              frmOSD.Show;
+              if frmAdvSettings.chkFullScreen.Checked then
+              begin
+                if not DetectFullScreenApp then
+                  frmOSD.Show;
+              end
+              else
+                frmOSD.Show;
             end;
           end
           else
@@ -385,10 +571,10 @@ begin
         end;
       end
 
-      else if(MPos.X > Screen1.Right - HotArea)
-      and (MPos.X <= Screen1.Right - 1)
-      and (MPos.Y >= Screen1.Top)
-      and (MPos.Y < Screen1.Top + HotArea) then
+      else if (MPos.X > Screen1.Right - HotArea)
+        and (MPos.X <= Screen1.Right - 1)
+        and (MPos.Y >= Screen1.Top)
+        and (MPos.Y < Screen1.Top + HotArea) then
       begin
         if not OnHotSpot then
         begin
@@ -400,9 +586,9 @@ begin
           // avoid usage if mouse is in use (buttons down e.g.)
           // if value is negative, it means is in use (aka held down)
           if (GetKeyState(VK_LBUTTON) < 0)
-          or (GetKeyState(VK_MBUTTON) < 0)
-          or (GetKeyState(VK_RBUTTON) < 0)
-          then
+            or (GetKeyState(VK_MBUTTON) < 0)
+            or (GetKeyState(VK_RBUTTON) < 0)
+            then
             Exit;
 
           if frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayTopRight.Checked then
@@ -418,7 +604,13 @@ begin
               frmOSD.DrawBubble(IntToStr(hotActionDelay - hotActionDelayCounter));
               frmOSD.Left := Screen1.Right - frmOSD.Width;
               frmOSD.Top := Screen1.Top;
-              frmOSD.Show;
+              if frmAdvSettings.chkFullScreen.Checked then
+              begin
+                if not DetectFullScreenApp then
+                  frmOSD.Show;
+              end
+              else
+                frmOSD.Show;
             end;
           end
           else
@@ -426,10 +618,10 @@ begin
         end;
       end
 
-      else if(MPos.X >= Screen1.Left)
-      and (MPos.X < Screen1.Left + HotArea)
-      and (MPos.Y <= Screen1.Bottom - 1)
-      and (MPos.Y > Screen1.Bottom - HotArea) then
+      else if (MPos.X >= Screen1.Left)
+        and (MPos.X < Screen1.Left + HotArea)
+        and (MPos.Y <= Screen1.Bottom - 1)
+        and (MPos.Y > Screen1.Bottom - HotArea) then
       begin
         if not OnHotSpot then
         begin
@@ -441,9 +633,9 @@ begin
           // avoid usage if mouse is in use (buttons down e.g.)
           // if value is negative, it means is in use (aka held down)
           if (GetKeyState(VK_LBUTTON) < 0)
-          or (GetKeyState(VK_MBUTTON) < 0)
-          or (GetKeyState(VK_RBUTTON) < 0)
-          then
+            or (GetKeyState(VK_MBUTTON) < 0)
+            or (GetKeyState(VK_RBUTTON) < 0)
+            then
             Exit;
 
           if frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayBotLeft.Checked then
@@ -459,7 +651,13 @@ begin
               frmOSD.DrawBubble(IntToStr(hotActionDelay - hotActionDelayCounter));
               frmOSD.Left := Screen1.Left;
               frmOSD.Top := Screen1.Bottom - frmOSD.Height;
-              frmOSD.Show;
+              if frmAdvSettings.chkFullScreen.Checked then
+              begin
+                if not DetectFullScreenApp then
+                  frmOSD.Show;
+              end
+              else
+                frmOSD.Show;
             end;
           end
           else
@@ -467,10 +665,10 @@ begin
         end;
       end
 
-      else if(MPos.X <= Screen1.Right - 1)
-      and (MPos.X > Screen1.Right - HotArea)
-      and (MPos.Y <= Screen1.Bottom - 1)
-      and (MPos.Y > Screen1.Bottom - HotArea) then
+      else if (MPos.X <= Screen1.Right - 1)
+        and (MPos.X > Screen1.Right - HotArea)
+        and (MPos.Y <= Screen1.Bottom - 1)
+        and (MPos.Y > Screen1.Bottom - HotArea) then
       begin
         if not OnHotSpot then
         begin
@@ -482,9 +680,9 @@ begin
           // avoid usage if mouse is in use (buttons down e.g.)
           // if value is negative, it means is in use (aka held down)
           if (GetKeyState(VK_LBUTTON) < 0)
-          or (GetKeyState(VK_MBUTTON) < 0)
-          or (GetKeyState(VK_RBUTTON) < 0)
-          then
+            or (GetKeyState(VK_MBUTTON) < 0)
+            or (GetKeyState(VK_RBUTTON) < 0)
+            then
             Exit;
 
           if frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayBotRight.Checked then
@@ -500,7 +698,13 @@ begin
               frmOSD.DrawBubble(IntToStr(hotActionDelay - hotActionDelayCounter));
               frmOSD.Left := Screen1.Right - frmOSD.Width;
               frmOSD.Top := Screen1.Bottom - frmOSD.Height;
-              frmOSD.Show;
+              if frmAdvSettings.chkFullScreen.Checked then
+              begin
+                if not DetectFullScreenApp then
+                  frmOSD.Show;
+              end
+              else
+                frmOSD.Show;
             end;
           end
           else
@@ -528,7 +732,7 @@ procedure TfrmMain.Iconito(var Msg: TMessage);
 var
   coord: TPoint;
 begin
-  if Msg.LParam = WM_RBUTTONDOWN then
+  if Msg.LParam = WM_RBUTTONUP then
   begin
     GetCursorPos(coord);
 {    if IsWindowVisible(Form2.Handle) then
@@ -539,24 +743,26 @@ begin
     frmTrayPopup.Close;
     PopupMenu1.Popup(coord.X, coord.Y);
     PostMessage(Handle, WM_NULL, 0, 0);
+    SwitchToThisWindow(PopupMenu1.Handle, True);
   end
-  else if Msg.LParam = WM_LBUTTONDOWN then
+  else if Msg.LParam = WM_LBUTTONUP then
   begin
     if not IsWindowVisible(frmTrayPopup.Handle) then
     begin
 
       frmTrayPopup.Show;
-      frmTrayPopup.Image1Click(frmTrayPopup);
+
     end
     else
       frmTrayPopup.Close
   end;
 
+
 end;
 
 procedure TfrmMain.RegAutoStart(registerasrun: boolean);
 var
-  reg : TRegistry;
+  reg: TRegistry;
 begin
   reg := TRegistry.Create;
   try
@@ -566,13 +772,21 @@ begin
       if not registerasrun then
         reg.DeleteValue('WinXCorners')
       else
-        reg.WriteString('WinXCorners',ParamStr(0));
+        reg.WriteString('WinXCorners', ParamStr(0));
     except
     end;
     reg.CloseKey;
   finally
     reg.Free;
   end;
+end;
+
+procedure TfrmMain.tmFullScreenClick(Sender: TObject);
+begin
+//
+  tmFullScreen.Checked := not tmFullScreen.Checked;
+  frmAdvSettings.chkFullScreen.Checked := tmFullScreen.Checked;
+  frmAdvSettings.SaveAdvancedIni;
 end;
 
 procedure TfrmMain.tmrDelayTimer(Sender: TObject);
@@ -598,18 +812,18 @@ begin
 //  Desk := OpenInputDesktop(0, False, READ_CONTROL or DESKTOP_READOBJECTS);
 //  if Desk <> NULL then
 //  begin
-    Cur := 0;
-    try
-      MPos := Mouse.CursorPos;
+  Cur := 0;
+  try
+    MPos := Mouse.CursorPos;
       // LogonUI (Ctrl+Alt+Del) doesn't return GetForegroundWindow
-      Cur := GetForegroundWindow;
-    except
-      Cur := 0;
+    Cur := GetForegroundWindow;
+  except
+    Cur := 0;
 //      CloseHandle(Desk);
-      Exit;
-    end;
-    if cur = 0 then
-     Exit;
+    Exit;
+  end;
+  if cur = 0 then
+    Exit;
 //    CloseHandle(Desk);
 //  end
 //  else Exit;
@@ -627,14 +841,14 @@ begin
 
   if grayed then
     if SystemUsesLightTheme then
-    SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_1')
+      SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_1')
     else
-    SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_2')
+      SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_2')
   else
     if SystemUsesLightTheme then
-    SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_3')
+      SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_3')
     else
-    SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_1');
+      SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_1');
 
   toUpdate := False;
   if iconData.Wnd <> 0 then
@@ -642,7 +856,11 @@ begin
 
   with iconData do
   begin
+    {$ifdef ver360}
     cbSize := iconData.SizeOf;
+    {$else}
+    cbSize := SizeOf(iconData);
+    {$endif}
     Wnd := Handle;
     uID := 100;
     uFlags := NIF_MESSAGE + NIF_ICON + NIF_TIP;
@@ -687,8 +905,9 @@ begin
 end;}
 
 {-$DEFINE DELPHI_STYLE_SCALING}
+
 procedure TfrmMain.WMDpiChanged(var Message: TMessage);
-  {$IFDEF DELPHI_STYLE_SCALING}
+{$IFDEF DELPHI_STYLE_SCALING}
   function FontHeightAtDpi(aDPI, aFontSize: integer): integer;
   var
     tmpCanvas: TCanvas;
@@ -704,14 +923,14 @@ procedure TfrmMain.WMDpiChanged(var Message: TMessage);
       tmpCanvas.Free;
     end;
   end;
-  {$ENDIF}
+{$ENDIF}
 begin
   inherited;
-  {$IFDEF DELPHI_STYLE_SCALING}
+{$IFDEF DELPHI_STYLE_SCALING}
   ChangeScale(FontHeightAtDpi(LOWORD(Message.wParam), self.Font.Size), FontHeightAtDpi(self.PixelsPerInch, self.Font.Size));
-  {$ELSE}
+{$ELSE}
   ChangeScale(LOWORD(Message.wParam), self.PixelsPerInch);
-  {$ENDIF}
+{$ENDIF}
   Self.PixelsPerInch := LOWORD(Message.WParam);
 end;
 
@@ -743,18 +962,7 @@ end;
 
 procedure TfrmMain.About1Click(Sender: TObject);
 begin
-
-  frmTrayPopup.XCombo1.Visible := False;
-  frmTrayPopup.XCombo2.Visible := False;
-  frmTrayPopup.XCombo3.Visible := False;
-  frmTrayPopup.XCombo4.Visible := False;
-  frmTrayPopup.XCheckbox1.Visible := False;
-  frmTrayPopup.XComboAsLabel.Visible := False;
-  if not frmTrayPopup.Visible then
-  frmTrayPopup.Show;
-  frmTrayPopup.Image1.Visible := True;
-  frmTrayPopup.Image1.Left := (frmTrayPopup.Width - frmTrayPopup.Image1.Width) div 2;
-  frmTrayPopup.Image1.Top := (frmTrayPopup.Height - frmTrayPopup.Image1.Height) div 2;
+  MessageDlg('WinXCorners 1.3'#13#10'Author: vhanla'#13#10'https://apps.codigobit.info', mtInformation, [mbok], 0);
 end;
 
 procedure TfrmMain.Advanced1Click(Sender: TObject);
@@ -771,8 +979,8 @@ begin
     reg.RootKey := HKEY_CURRENT_USER;
     reg.OpenKeyReadOnly('SOFTWARE\Microsoft\Windows\CurrentVersion\Run');
     try
-    if reg.ReadString('WinXCorners')<> '' then
-      emporarydisabled1.Checked := True;
+      if reg.ReadString('WinXCorners') <> '' then
+        emporarydisabled1.Checked := True;
     except
     end;
     reg.CloseKey;
@@ -785,6 +993,18 @@ procedure TfrmMain.CreateParams(var Params: TCreateParams);
 begin
   inherited CreateParams(Params);
   Params.WinClassName := 'WinXCorners';
+end;
+
+procedure TfrmMain.CurrentDesktopChanged(Sender: TObject; OldDesktop,
+  NewDesktop: TVirtualDesktop);
+begin
+  DesktopManager.MoveWindowToDesktop(Handle, NewDesktop);
+end;
+
+procedure TfrmMain.CurrentDesktopChangedW11(Sender: TObject; OldDesktop,
+  NewDesktop: TVirtualDesktopW11);
+begin
+  DesktopManagerW11.MoveWindowToDesktop(Handle, NewDesktop);
 end;
 
 procedure TfrmMain.emporarydisabled1Click(Sender: TObject);
@@ -805,3 +1025,4 @@ begin
 end;}
 
 end.
+
