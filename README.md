@@ -13,6 +13,10 @@
   </a>
   <!-- downloads latest release -->
   <a href="https://github.com/vhanla/winxcorners/releases/latest">
+    <img src="https://img.shields.io/github/downloads/vhanla/winxcorners/1.3.0/total.svg" alt="total latest downloads">
+  </a>
+  <!-- downloads latest most downloaded release -->
+  <a href="https://github.com/vhanla/winxcorners/releases/latest">
     <img src="https://img.shields.io/github/downloads/vhanla/winxcorners/1.2.1b/total.svg" alt="total latest downloads">
   </a>
 </div>
@@ -77,14 +81,37 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
 
 4. **Unobstrusive**: Its usage won't interfere with your common tasks, unless you decide to do so.
     - It won't trigger actions while dragging content with your mouse.
-    - It won't trigger while using a Full Screen application, like games or media, for instance.
+    - It won't trigger while using a **Full Screen application**, like games or media, for instance.
+    - You can disable it temporarily right from the popup window with the switch toggle.
 
 5. **Visible Countdown Counter**: Helps you, visually, to know if a corner action is about to be triggered (Advanced feature).
+
+6. **Windows 10/11 Theme aware**: Partially supports Windows 10 and 11 dark and light theme, so it will look like part of your OS.
+<h4 align="center">:crescent_moon:themes:high_brightness:</h4>
+
+
+| Dark Theme Windows 11                                     | Light Theme Windows 11                                            |
+|:-------------------------------------------------:|:-----------------------------------------------:|
+| ![snap02](https://github.com/vhanla/winxcorners/blob/master/.github/snap02.jpg?raw=true)  | ![snap02b](https://github.com/vhanla/winxcorners/blob/master/.github/snap02b.jpg?raw=true)         |
+| Dark Theme Windows 10                                     | Light Theme Windows 10 May 2019 Update onwards                                       |
+| ![snp4](https://lh3.googleusercontent.com/-7ja-oixZ058/Vh-zjp8pRpI/AAAAAAAALQo/h4y4EPuoBbY/WinXCorners%25255B9%25255D%25255B1%25255D.jpg?imgmax=800)| ![imagen](https://user-images.githubusercontent.com/1015823/59126095-d2835e80-8929-11e9-9b89-6023164aaa8d.png)|
+
 
 ## Installation (Portable)
 1. Download the latest release from the GitHub repository.
 2. Just unzip into a secure folder.
 3. Run the single small executable, settings will be written/saved there.
+
+## Download and Installation *(?)*
+
+![platform](https://img.shields.io/static/v1.svg?label=Platform&message=Win-32&style=for-the-badge)
+
+| v1.3.0 (2024) | v1.2.1b (2019) |
+|:---------------:|:-----------------:|
+| ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)| ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)| 
+| [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/latest/WinXcorners130.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/v1.3.0/WinXcorners130.zip) | [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/1.2.1b/WinXCornersRegistryFix.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/v1.2.1b/WinXCornersRegistryFix.zip) |
+
+
 
 ## Usage
 1. Launch WinXcorners popup window from the system tray icon.
@@ -94,6 +121,12 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
 ## Advanced Usage
 1. Right click the WinXcorners tray icon.
 2. Select **Advanced** to open the more advanced options.
+
+|  | 
+|:-------------------------------------------------:|
+|![snp5](https://lh3.googleusercontent.com/-NtNXrUcUUus/V6VlOWJMPeI/AAAAAAAALxM/hmfgAnoSvK8/image%25255B12%25255D.png?imgmax=800)|
+|Windows 10 *old snapshot* | 
+
 3. There you can:
     - Set a global delay, so the action will trigger after some few seconds.
     - Set specific delay for each corner.
@@ -112,28 +145,10 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
     — RAM: 9 MB
 
 
-![snp2](https://lh3.googleusercontent.com/-vxIVdOymPXY/Vh-ze0Bn4bI/AAAAAAAALQY/zZ9TGvPVQpE/WinXCorners%25255B5%25255D.jpg?imgmax=800)
+**Limitations**:
 
-And when you are going to play video games, it includes a toggle option that will disable it temporarily.
+    Sometimes the application won't detect the screen edges if you are using (focused) an elevated privileged application. But you can always restart the application as administrator.
 
-![snp3](https://lh3.googleusercontent.com/-VrZ2zw8gfmo/Vh-zhP_UljI/AAAAAAAALQg/aqqvlB79QhQ/WinXCorners%25255B7%25255D%25255B1%25255D.jpg?imgmax=800)
-
-The application runs in the System Tray, by right clicking you can enable it to run when Windows starts (logon).
-
-![snp4](https://lh3.googleusercontent.com/-7ja-oixZ058/Vh-zjp8pRpI/AAAAAAAALQo/h4y4EPuoBbY/WinXCorners%25255B9%25255D%25255B1%25255D.jpg?imgmax=800)
-
-Limitations:
-
-    The application won't detect the screen edges if you are using (focused) an elevated privileged application. But you can always restart the application as administrator.
-    If you have multiple monitors, it won't work in a secondary monitor.
-
-![snp5](https://lh3.googleusercontent.com/-NtNXrUcUUus/V6VlOWJMPeI/AAAAAAAALxM/hmfgAnoSvK8/image%25255B12%25255D.png?imgmax=800)
-
-You can call this advanced options dialog from System Tray icon (right click –> Advanced)
-
-WIP Support for light theme on Windows 10 May 2019 Update
-
-![imagen](https://user-images.githubusercontent.com/1015823/59126095-d2835e80-8929-11e9-9b89-6023164aaa8d.png)
 
 MIT License
 
