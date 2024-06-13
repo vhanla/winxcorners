@@ -41,12 +41,12 @@
   </h4>
 </div>
 
-<div align="center">
+<!--div align="center">
   <sub>Translations:</sub>
   <a href="docs/i18n/spanish.md#readme">
     <span>:es:</span>
   </a>  
-</div>
+</div-->
 
 ## WinXcorners
 WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances your desktop experience by allowing you to assign custom actions triggered when you hover your mouse cursor over the corners of your main monitor. Whether you're a power user, developer, or just someone who appreciates efficiency, WinXcorners provides a seamless way to streamline your workflow.
@@ -54,24 +54,30 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
 ## Key Features
 
 1. **Corner Actions**: Choose from a variety of predefined actions for each corner:
-- **Show All Windows**: Activate Windows' Task View `Win`+`Tab` to manage your open applications.
-- **Show Desktop**: Quickly minimize all windows and reveal the desktop.
-- **Start Screen Saver**: Trigger your screen saver for privacy or energy-saving purposes.
-- **Turn Off Monitors**: Conveniently turn off your display when not in use.
-- **Start Menu**: Invoke the Start Menu on hovering a corner.
-- **Action Center**: Invoke the Action Center without hassle.
-- **Hide Other Windows**: Just like `Win`+`Home`.
+    <details>
+        <summary>
+            <strong>Show All Windows:</strong> Activate Windows' Task View `Win`+`Tab` to manage your open applications.
+        </summary>
+        <p align="center"><video src="https://private-user-images.githubusercontent.com/1015823/339573857-e76a408c-db68-4b01-b5e7-6c991b23306c.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTgzMTk0NzMsIm5iZiI6MTcxODMxOTE3MywicGF0aCI6Ii8xMDE1ODIzLzMzOTU3Mzg1Ny1lNzZhNDA4Yy1kYjY4LTRiMDEtYjVlNy02Yzk5MWIyMzMwNmMubXA0P1gtQW16LUFsZ29yaXRobT1BV1M0LUhNQUMtU0hBMjU2JlgtQW16LUNyZWRlbnRpYWw9QUtJQVZDT0RZTFNBNTNQUUs0WkElMkYyMDI0MDYxMyUyRnVzLWVhc3QtMSUyRnMzJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyNDA2MTNUMjI1MjUzWiZYLUFtei1FeHBpcmVzPTMwMCZYLUFtei1TaWduYXR1cmU9YjQ2ZWY2MTE0Yzk0YTkyMmI5ZGYzZTYwZjczMDEzOTVmOWJkZjE3MzEyNTBmZTA2MzViZTY5ODAzMzlmZWU5NSZYLUFtei1TaWduZWRIZWFkZXJzPWhvc3QmYWN0b3JfaWQ9MCZrZXlfaWQ9MCZyZXBvX2lkPTAifQ.a3lscQfOnOHr9iDYV4l8vKi8mBqrICrVh2B-d2u0yaM"/></p>
+    </details>
+    
+    - [x] **Show Desktop**: Quickly minimize all windows and reveal the desktop.
+    - [x] **Start Screen Saver**: Trigger your screen saver for privacy or energy-saving purposes.
+    - [x] **Turn Off Monitors**: Conveniently turn off your display when not in use.
+    - [x] **Start Menu**: Invoke the Start Menu on hovering a corner.
+    - [x] **Action Center**: Invoke the Action Center without hassle.
+    - [x] **Hide Other Windows**: Just like `Win`+`Home`.
 
 2. **Customization**: Tailor WinXcorners to your preferences:
-- Assign different actions to different corners.
-- Fine-tune hover sensitivity and delay settings.
-- Enable or disable automatic startup with Windows.
+    - Assign different actions to different corners.
+    - Fine-tune hover sensitivity and delay settings.
+    - Enable or disable automatic startup with Windows.
 
 3. **System Tray Integration**: WinXcorners runs discreetly in the system tray, ensuring it doesn't clutter your desktop or Taskbar.
 
 4. **Unobstrusive**: Its usage won't interfere with your common tasks, unless you decide to do so.
-- It won't trigger actions while dragging content with your mouse.
-- It won't trigger while using a Full Screen application, like games or media, for instance.
+    - It won't trigger actions while dragging content with your mouse.
+    - It won't trigger while using a Full Screen application, like games or media, for instance.
 
 5. **Visible Countdown Counter**: Helps you, visually, to know if a corner action is about to be triggered (Advanced feature).
 
@@ -89,9 +95,9 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
 1. Right click the WinXcorners tray icon.
 2. Select **Advanced** to open the more advanced options.
 3. There you can:
-- Set a global delay, so the action will trigger after some few seconds.
-- Set specific delay for each corner.
-- Enable or Disable the triggering of actions while on Full Screen applications, it can also be done via the right click on the system tray icon for WinXcorners.
+    - Set a global delay, so the action will trigger after some few seconds.
+    - Set specific delay for each corner.
+    - Enable or Disable the triggering of actions while on Full Screen applications, it can also be done via the right click on the system tray icon for WinXcorners.
 4. Add up to 4 custom actions: Just write the commands and its respective arguments to launch, set hidden launch or visible. 
 
 ## Notes
@@ -101,7 +107,9 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
 
 ## Requirements
 
-    Windows 10 x86/x64  | Windows 11 
+    — OS: Windows 10 x86/x64  | Windows 11 
+    — HDD: 1.4 MB 
+    — RAM: 9 MB
 
 
 ![snp2](https://lh3.googleusercontent.com/-vxIVdOymPXY/Vh-ze0Bn4bI/AAAAAAAALQY/zZ9TGvPVQpE/WinXCorners%25255B5%25255D.jpg?imgmax=800)
@@ -119,37 +127,12 @@ Limitations:
     The application won't detect the screen edges if you are using (focused) an elevated privileged application. But you can always restart the application as administrator.
     If you have multiple monitors, it won't work in a secondary monitor.
 
-[UPDATE August 2016]
-WinXCorners 1.1.0.3 beta
-
-This is new version which fixes some bugs and adds new features:
-
-Changelog:
-
-- Fixed trigger while holding down any mouse button  (left, middle or right button)
-
-- Changed text rendering method to fix blurry text on some screen resolutions
-
-- Fixed showing countdown while holding down mouse button
-
-- Added a workaround to let show windows, show desktop and show action center be triggered while using a program with administrative rights
-
-New features:
-
-- Delayed hotcornes, you can set a delay time to trigger a hotcorner event
-
-- Added notification center option
-
-- Custom command for a hotcorner
-
-- Visible delay countdown
-
-- Trayicon icon updated, it turns grayish if you disable temporarily the tool
-
 ![snp5](https://lh3.googleusercontent.com/-NtNXrUcUUus/V6VlOWJMPeI/AAAAAAAALxM/hmfgAnoSvK8/image%25255B12%25255D.png?imgmax=800)
+
 You can call this advanced options dialog from System Tray icon (right click –> Advanced)
 
 WIP Support for light theme on Windows 10 May 2019 Update
+
 ![imagen](https://user-images.githubusercontent.com/1015823/59126095-d2835e80-8929-11e9-9b89-6023164aaa8d.png)
 
 MIT License
