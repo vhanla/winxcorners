@@ -3,10 +3,11 @@ unit frmAdvanced;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Samples.Spin,
-  Vcl.ExtCtrls, ShellApi, IniFiles, IPPeerClient, Data.Bind.Components,
-  Data.Bind.ObjectScope, REST.Client{, REST.Client, JSon};
+  Windows, Messages, SysUtils, Variants, Classes, Graphics,
+  Controls, Forms, Dialogs, StdCtrls, Spin,
+  ExtCtrls, ShellApi, IniFiles, ComCtrls, frameCommands //IPPeerClient, Data.Bind.Components,
+  //Data.Bind.ObjectScope, REST.Client,
+  {, REST.Client, JSon};
 
 const
   VERSION = '1.2';
@@ -25,7 +26,6 @@ type
     chkDelayBotRight: TCheckBox;
     valDelayBotRight: TSpinEdit;
     Label2: TLabel;
-    chkShowCount: TCheckBox;
     GroupBox2: TGroupBox;
     Button1: TButton;
     Button2: TButton;
@@ -37,14 +37,29 @@ type
     edParams: TEdit;
     Label1: TLabel;
     Label5: TLabel;
+    chkShowCount: TCheckBox;
+    chkFullScreen: TCheckBox;
+    PageControl1: TPageControl;
+    TabSheet1: TTabSheet;
+    TabSheet2: TTabSheet;
+    TabSheet3: TTabSheet;
+    TabSheet4: TTabSheet;
     procedure FormCreate(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure Label4Click(Sender: TObject);
     procedure chkDelayGlobalClick(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure Label5Click(Sender: TObject);
+    procedure chkFullScreenClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure PageControl1Change(Sender: TObject);
+    procedure edCommandChange(Sender: TObject);
+    procedure edParamsChange(Sender: TObject);
+    procedure chkHiddenClick(Sender: TObject);
   private
     { Private declarations }
+    procedure Temp2Cmd; // dump changes to official
+    procedure Cmd2Temp; // restore from temp to official cmd
   public
     { Public declarations }
     procedure SaveAdvancedIni;
@@ -53,12 +68,19 @@ type
 
 var
   frmAdvSettings: TfrmAdvSettings;
+  cmdcli: array [0..3] of string;
+  cmdarg: array [0..3] of string;
+  cmdhid: array [0..3] of boolean;
+  tmpcmdcli: array [0..3] of string;
+  tmpcmdarg: array [0..3] of string;
+  tmpcmdhid: array [0..3] of boolean;
+
 
 implementation
 
 {$R *.dfm}
 
-uses frmSettings;
+uses frmSettings, main, functions;
 
 procedure TfrmAdvSettings.Button1Click(Sender: TObject);
 begin
@@ -101,14 +123,83 @@ begin
 
 end;
 
+procedure TfrmAdvSettings.chkFullScreenClick(Sender: TObject);
+begin
+  frmMain.tmFullScreen.Checked := chkFullScreen.Checked;
+end;
+
+procedure TfrmAdvSettings.chkHiddenClick(Sender: TObject);
+begin
+  if Sender is TCheckBox then
+    tmpcmdhid[PageControl1.ActivePageIndex] := chkHidden.Checked;
+end;
+
+procedure TfrmAdvSettings.Cmd2Temp;
+var
+  I : Integer;
+begin
+  for I := 0 to 3 do
+  begin
+    tmpcmdcli[I] := cmdcli[I];
+    tmpcmdarg[I] := cmdarg[I];
+    tmpcmdhid[I] := cmdhid[I];
+  end;
+end;
+
+procedure TfrmAdvSettings.edCommandChange(Sender: TObject);
+begin
+  if Sender is TEdit then
+    tmpcmdcli[PageControl1.ActivePageIndex] := edCommand.Text;
+end;
+
+procedure TfrmAdvSettings.edParamsChange(Sender: TObject);
+begin
+  if Sender is TEdit then
+    tmpcmdarg[PageControl1.ActivePageIndex] := edParams.Text;
+end;
+
 procedure TfrmAdvSettings.FormCreate(Sender: TObject);
 begin
+//  if not SystemUsesLightTheme then
+//  begin
+    AllowDarkModeForWindow(Handle, True);
+    AllowDarkModeForApp(True);
+    SetPreferredAppMode(1);
+    DarkMode;
+//  end;
+
   FormStyle := fsStayOnTop;
   BorderStyle := bsSingle;
   BorderIcons := [biSystemMenu, biMinimize];
   Position := poScreenCenter;
   valDelayGlobal.Enabled := False;
   ReadAdvancedIni;
+    UseImmersiveDarkMode(Handle, True);
+//  EnableNCShadow(Handle);
+
+end;
+
+procedure TfrmAdvSettings.FormShow(Sender: TObject);
+begin
+//  if SystemUsesLightTheme then
+//  begin
+//    Color := clWhite;
+//    AllowDarkModeForWindow(Handle, False);
+//    AllowDarkModeForApp(False);
+//    SetPreferredAppMode(0);
+//    DarkMode;
+//    UseImmersiveDarkMode(Handle, False);
+//  end
+//  else
+//  begin
+//    Color := $999999;
+//    AllowDarkModeForWindow(Handle, True);
+//    AllowDarkModeForApp(True);
+//    SetPreferredAppMode(1);
+//    DarkMode;
+//    UseImmersiveDarkMode(Handle, True);
+//  end;
+
 end;
 
 procedure TfrmAdvSettings.Label4Click(Sender: TObject);
@@ -121,6 +212,7 @@ var
 //  jValue: TJSonValue;
   rversion: String;
 begin
+  ShellExecute(0, 'OPEN', PChar('https://github.com/vhanla/winxcorners/releases'), nil, nil, SW_SHOWNORMAL);
 {  RESTClient1.BaseURL := 'https://updates.codigobit.net/app/winxcorners';
   RESTRequest1.Execute;
   try
@@ -138,6 +230,14 @@ begin
   except
     MessageDlg('Error', mtInformation, [mbOK],0);
   end;}
+end;
+
+procedure TfrmAdvSettings.PageControl1Change(Sender: TObject);
+begin
+ Windows.SetParent(GroupBox2.Handle, PageControl1.ActivePage.Handle);
+ edCommand.Text := tmpcmdcli[PageControl1.ActivePageIndex];
+ edParams.Text := tmpcmdarg[PageControl1.ActivePageIndex];
+ chkHidden.Checked := tmpcmdhid[PageControl1.ActivePageIndex];
 end;
 
 procedure TfrmAdvSettings.ReadAdvancedIni;
@@ -161,11 +261,37 @@ begin
     chkShowCount.Checked := ini.ReadBool('Advanced', 'ShowCountDown', False);
 
     chkCustom.Checked := ini.ReadBool('Advanced', 'CustomCommand', False);
-    frmTrayPopup.XPopupMenu.Items[5].Visible := chkCustom.Checked;
+    frmTrayPopup.XPopupMenu.Items[6].Visible := chkCustom.Checked;
+    frmTrayPopup.XPopupMenu.Items[7].Visible := chkCustom.Checked;
+    frmTrayPopup.XPopupMenu.Items[8].Visible := chkCustom.Checked;
+    frmTrayPopup.XPopupMenu.Items[9].Visible := chkCustom.Checked;
     frmTrayPopup.UpdateXCombos;
-    edCommand.Text := ini.ReadString('Advanced', 'CustomCommandline', '');
-    edParams.Text := ini.ReadString('Advanced', 'CustomCommandparms', '');
-    chkHidden.Checked := ini.ReadBool('Advanced', 'CustomCommandHidden', False);
+
+    cmdcli[0] := ini.ReadString('Advanced', 'CustomCommandline', '');
+    cmdarg[0] := ini.ReadString('Advanced', 'CustomCommandparms', '');
+    cmdhid[0] := ini.ReadBool('Advanced', 'CustomCommandHidden', False);
+
+    cmdcli[1] := ini.ReadString('Advanced', 'CustomCommandline2', '');
+    cmdarg[1] := ini.ReadString('Advanced', 'CustomCommandparms2', '');
+    cmdhid[1] := ini.ReadBool('Advanced', 'CustomCommandHidden2', False);
+
+    cmdcli[2] := ini.ReadString('Advanced', 'CustomCommandline3', '');
+    cmdarg[2] := ini.ReadString('Advanced', 'CustomCommandparms3', '');
+    cmdhid[2] := ini.ReadBool('Advanced', 'CustomCommandHidden3', False);
+
+    cmdcli[3] := ini.ReadString('Advanced', 'CustomCommandline4', '');
+    cmdarg[3] := ini.ReadString('Advanced', 'CustomCommandparms4', '');
+    cmdhid[3] := ini.ReadBool('Advanced', 'CustomCommandHidden4', False);
+
+    // clone values
+    cmd2temp;
+
+    edCommand.Text := cmdcli[PageControl1.ActivePageIndex];
+    edParams.Text := cmdarg[PageControl1.ActivePageIndex];
+    chkHidden.Checked := cmdhid[PageControl1.ActivePageIndex];
+
+    chkFullScreen.Checked := ini.ReadBool('Advanced', 'IgnoreFullScreen', True);
+    frmMain.tmFullScreen.Checked := chkFullScreen.Checked;
   finally
     ini.Free;
   end;
@@ -192,13 +318,47 @@ begin
     ini.WriteBool('Advanced', 'ShowCountDown', chkShowCount.Checked);
 
     ini.WriteBool('Advanced', 'CustomCommand', chkCustom.Checked);
-    frmTrayPopup.XPopupMenu.Items[5].Visible := chkCustom.Checked;
+    frmTrayPopup.XPopupMenu.Items[6].Visible := chkCustom.Checked;
+    frmTrayPopup.XPopupMenu.Items[7].Visible := chkCustom.Checked;
+    frmTrayPopup.XPopupMenu.Items[8].Visible := chkCustom.Checked;
+    frmTrayPopup.XPopupMenu.Items[9].Visible := chkCustom.Checked;
     frmTrayPopup.UpdateXCombos;
-    ini.WriteString('Advanced', 'CustomCommandline', edCommand.Text);
-    ini.WriteString('Advanced', 'CustomCommandparms', edParams.Text);
-    ini.WriteBool('Advanced', 'CustomCommandHidden', chkHidden.Checked);
+
+    temp2cmd; // accept all the changes to commands
+
+    ini.WriteString('Advanced', 'CustomCommandline', cmdcli[0]);
+    ini.WriteString('Advanced', 'CustomCommandparms', cmdarg[0]);
+    ini.WriteBool('Advanced', 'CustomCommandHidden', cmdhid[0]);
+
+    ini.WriteString('Advanced', 'CustomCommandline2', cmdcli[1]);
+    ini.WriteString('Advanced', 'CustomCommandparms2', cmdarg[1]);
+    ini.WriteBool('Advanced', 'CustomCommandHidden2', cmdhid[1]);
+
+    ini.WriteString('Advanced', 'CustomCommandline3', cmdcli[2]);
+    ini.WriteString('Advanced', 'CustomCommandparms3', cmdarg[2]);
+    ini.WriteBool('Advanced', 'CustomCommandHidden3', cmdhid[2]);
+
+    ini.WriteString('Advanced', 'CustomCommandline4', cmdcli[3]);
+    ini.WriteString('Advanced', 'CustomCommandparms4', cmdarg[3]);
+    ini.WriteBool('Advanced', 'CustomCommandHidden4', cmdhid[3]);
+
+
+    ini.WriteBool('Advanced', 'IgnoreFullScreen', chkFullScreen.Checked);
+    frmMain.tmFullScreen.Checked := chkFullScreen.Checked;
   finally
     ini.Free;
+  end;
+end;
+
+procedure TfrmAdvSettings.Temp2Cmd;
+var
+  I : Integer;
+begin
+  for I := 0 to 3 do
+  begin
+    cmdcli[I] := tmpcmdcli[I];
+    cmdarg[I] := tmpcmdarg[I];
+    cmdhid[I] := tmpcmdhid[I];
   end;
 end;
 
