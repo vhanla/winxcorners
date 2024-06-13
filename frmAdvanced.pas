@@ -5,12 +5,10 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics,
   Controls, Forms, Dialogs, StdCtrls, Spin,
-  ExtCtrls, ShellApi, IniFiles, ComCtrls, frameCommands //IPPeerClient, Data.Bind.Components,
-  //Data.Bind.ObjectScope, REST.Client,
-  {, REST.Client, JSon};
+  ExtCtrls, ShellApi, IniFiles, ComCtrls;
 
 const
-  VERSION = '1.2';
+  VERSION = '1.3';
 
 type
   TfrmAdvSettings = class(TForm)
