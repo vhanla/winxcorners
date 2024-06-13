@@ -1,5 +1,9 @@
 {
 Changelog:
+- 24-06-12
+  Add Windows 11 rounded style, darkmode support too
+- 24-06-11
+  Fixed popup invoke position
 - 19-06-07
   Added GetVisibleCount to return count of visible items only
   Disabled automatic single monitor popup positioning TXMenuItems.Popup
@@ -18,7 +22,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Forms, Classes, Controls, Graphics, GDIPAPI,GDIPAPIEXtra,
-  XGraphics, DWMApi;
+  XGraphics, DWMApi, functions;
 
 type
   TXPopupMenu = class;
@@ -151,7 +155,7 @@ type
 
 implementation
 
-uses Types;
+uses Types, GDIPOBJ;
 
 const
   WndClassName = 'TXPopupWindow';
@@ -159,7 +163,7 @@ const
   Diameter = 1;
   ItemHeight = 44;
   MenuAlpha = 255;//210;
-  FontSize = 12;
+  FontSize = 10; //12 win10;
   FontName = 'Segoe UI';
   FontStyle = FontStyleRegular;
 
@@ -317,6 +321,10 @@ begin
   FItems := TXMenuItems.Create;
   FItems.FParent := Self;
   FOnClick := NIL;
+
+  UseImmersiveDarkMode(WindowParent, True);
+  EnableNCShadow(WindowParent);
+
 end;
 
 destructor TXMenuItem.Destroy;
@@ -550,7 +558,8 @@ begin
     if (FTop + FHeight > GetSystemMetrics(SM_CYSCREEN)) then
     begin
       FArrowPos := apLeftBottom;
-      dec(FTop, FHeight + 2 - 8);
+      //dec(FTop, FHeight + 2 - 8);
+      FTop := GetSystemMetrics(SM_CYSCREEN) - FHeight + 2 - 8;
       if (FParent <> NIL) then
         inc(FTop, 37);
     end else
@@ -624,16 +633,16 @@ procedure TXMenuItems.DrawItem(Index: Integer);
 var
   r: TRect;
   rf: TGPRectF;
-  Path: GpPath;
+  Path : GpPath;
   Brush: GpBrush;
   Points: array[0..2] of TGPPointF;
   IsLine: Boolean;
-  x, y: Integer;
+  x, y, s: Integer;
   p: PARGB;
-
+  RoundedPath: GpPath;
   //this is to get colorization from dwmapi
   dwmcol: cardinal;
-  dwmopaque: longbool;
+  dwmopaque: Boolean;
 begin
   if (Index < 0) or (Index >= FItems.Count) or not TXMenuItem(FItems[Index]).Visible then Exit;
 
@@ -658,14 +667,57 @@ begin
       ARGBMake(Byte(dwmcol shr 24), Byte(dwmcol shr 16), Byte(dwmcol shr 8), Byte(dwmcol)),
        LinearGradientModeVertical, WrapModeTile, Brush);
 
+    if isWindows11 then //TODO: ROunded using path, nextime
+    GdipFillRectangle(FDIB.GPContext, Brush, r.Left+4, r.Top+4,
+      r.Right - r.Left-8, r.Bottom - r.Top-8)
+    else
     GdipFillRectangle(FDIB.GPContext, Brush, r.Left, r.Top,
       r.Right - r.Left, r.Bottom - r.Top);
     GdipDeleteBrush(Brush);
   end else
-  begin
-    FDIB.SetBrush(ARGBMake(Round(MenuAlpha * FFade / 3), $E6, $E6, $E6));
-    GdipFillRectangle(FDIB.GPContext, FDIB.GPSolidBrush, r.Left, r.Top,
-      r.Right - r.Left, r.Bottom - r.Top);
+  begin // background
+    if SystemUsesLightTheme then
+      FDIB.SetBrush(ARGBMake(Round(MenuAlpha * FFade / 3), $E6, $E6, $E6))
+    else
+      FDIB.SetBrush(ARGBMake(Round(MenuAlpha * FFade / 3), $2d, $2d, $2d));// $E6, $E6, $E6));
+    if isWindows11 then
+    begin
+      if (Index > 0) and (Index < Self.Count -1) then
+      GdipFillRectangle(FDIB.GPContext, FDIB.GPSolidBrush, r.Left, r.Top,
+        r.Right - r.Left, r.Bottom - r.Top)
+      else
+      begin
+        GdipCreatePath(FillModeAlternate, RoundedPath);
+        try
+          s := MulDiv(12, Screen.PixelsPerInch, 96); // radio
+          if Index = 0 then
+          begin
+            GdipAddPathArc(RoundedPath, r.Left, r.Top, s, s, 180, 90); // Top-left corner
+            GdipAddPathArc(RoundedPath, r.Right - s, r.Top, s, s, 270, 90); // Top-right corner
+            if Index = Self.Count - 1 then // if only one item, let's turn this to a rounded rectangle
+            begin
+              GdipAddPathArc(RoundedPath, r.Right - s, r.Bottom - s, s, s, 0, 90); // Bottom-right corner
+              GdipAddPathArc(RoundedPath, r.Left, r.Bottom - s, s, s, 90, 90); // Bottom-left corner
+            end
+            else
+              GdipAddPathLine(RoundedPath, r.Right, r.Bottom, r.Left, r.Bottom);
+          end
+          else if Index = Self.Count - 1 then
+          begin
+            GdipAddPathLine(RoundedPath, r.Left, r.Top, r.Right, r.Top);
+            GdipAddPathArc(RoundedPath, r.Right - s, r.Bottom - s, s, s, 0, 90); // Bottom-right corner
+            GdipAddPathArc(RoundedPath, r.Left, r.Bottom - s, s, s, 90, 90); // Bottom-left corner
+          end;
+          GdipClosePathFigure(RoundedPath);
+          GdipFillPath(FDIB.GPContext, FDIB.GPSolidBrush, RoundedPath);
+        finally
+          GdipDeletePath(RoundedPath);
+        end;
+      end;
+    end
+    else
+      GdipFillRectangle(FDIB.GPContext, FDIB.GPSolidBrush, r.Left, r.Top,
+        r.Right - r.Left, r.Bottom - r.Top);
   end;
 
   GdipSetSmoothingMode(FDIB.GPContext, SmoothingModeAntiAlias);
@@ -678,10 +730,15 @@ begin
     GdipDrawLine(FDIB.GPContext, FDIB.GPPen, r.Left, r.Top + 1, r.Right - 1, r.Top + 1);
   end else
   begin
-    if (FSelectIndex = Index) then
+    if (FSelectIndex = Index) then // text color
       FDIB.SetBrush(ARGBMake(Round(255 * FFade / 3), $F0, $F0, $F0))
     else
-      FDIB.SetBrush(ARGBMake(Round(255 * FFade / 3), $00, $00, $00));
+    begin
+      if SystemUsesLightTheme then
+        FDIB.SetBrush(ARGBMake(Round(255 * FFade / 3), $00, $00, $00))
+      else
+        FDIB.SetBrush(ARGBMake(Round(255 * FFade / 3), $F0, $F0, $F0));
+    end;
     inc(r.Left, 15);
     dec(r.Right, 10);
     FDIB.SetFont(FontName, FontSize, FontStyle);
