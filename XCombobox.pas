@@ -30,7 +30,7 @@ uses
 type
   TXCombobox = class(TGraphicControl)
   private
-    _caption : string;
+    _caption: string;
     _disabledColor: TColor;
     _enabledColor: TColor;
     _pressedColor: TColor;
@@ -44,7 +44,7 @@ type
     MLeave: TNotifyEvent;
     BtnClick: TNotifyEvent;
     FOnclick: TNotifyEvent;
-    _font : TFont;
+    _font: TFont;
 
     procedure SetDisabledColor(Value: TColor);
     procedure SetEnabledColor(Value: TColor);
@@ -56,8 +56,8 @@ type
 
   protected
     procedure Paint; override;
-    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X,Y: Integer); override;
-    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X,Y: Integer); override;
+    procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
     procedure MouseEnter(var Message: TMessage); message CM_MOUSEENTER;
     procedure Click; override;
@@ -81,7 +81,7 @@ type
 //    property Font;
     property Font: TFont read _font write SetFont;
     property Enabled: Boolean read _enabled write SetEnabled;
-    property OnClick;//: TNotifyEvent read FOnClick write FOnClick;
+    property OnClick; //: TNotifyEvent read FOnClick write FOnClick;
 
   end;
 
@@ -107,8 +107,9 @@ end;
 constructor TXCombobox.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  Width := 167;
-  Height := 31;
+//  Width := MulDiv(167, Screen.PixelsPerInch, 96); //win10
+  Width := MulDiv(151, Screen.PixelsPerInch, 96);
+  Height := MulDiv(31, Screen.PixelsPerInch, 96);
   _enabledcolor := clOlive;
   _disabledColor := clBlack;
   _enabled := True; // this will show as label if disabled
@@ -116,10 +117,10 @@ begin
   _mousehover := False;
   _mousepressed := False;
   Canvas.Brush.Color := clBlack;
-  _font:=TFont.Create;
+  _font := TFont.Create;
   _font.Color := clWhite;
-  _font.Size := 12;
-  FOnclick := NIL;
+  _font.Size := 14; //12 win10
+  FOnclick := nil;
   ShowHint := False;
 end;
 
@@ -158,19 +159,22 @@ begin
 end;
 
 procedure TXCombobox.Paint;
-function MakeGDIPColor(C: TColor; A: Integer = 255): Cardinal;
-var
-  tmpRGB : TColorRef;
-begin
-  tmpRGB := ColorToRGB(C);
-  result := ((DWORD(GetBValue(tmpRGB)) shl  BlueShift) or
-             (DWORD(GetGValue(tmpRGB)) shl GreenShift) or
-             (DWORD(GetRValue(tmpRGB)) shl   RedShift) or
-             (DWORD(A) shl AlphaShift));
-end;
-{const
-  MergeFunc: TBlendFunction = (BlendOp: AC_SRC_OVER; BlendFlags: 0;
-    SourceConstantAlpha: $FF; AlphaFormat: AC_SRC_ALPHA);}
+
+  function MakeGDIPColor(C: TColor; A: Integer = 255): Cardinal;
+  var
+    tmpRGB: TColorRef;
+  begin
+    tmpRGB := ColorToRGB(C);
+    Result := ((DWORD(GetBValue(tmpRGB)) shl BlueShift) or
+      (DWORD(GetGValue(tmpRGB)) shl GreenShift) or
+      (DWORD(GetRValue(tmpRGB)) shl RedShift) or
+      (DWORD(A) shl AlphaShift));
+  end;
+
+  function hidpi(value: Integer): Integer;
+  begin
+    Result := MulDiv(value, Screen.PixelsPerInch, 96);
+  end;
 
 var
   bmp: TBitmap;
@@ -180,10 +184,16 @@ var
   pen: TGPPen;
   brush: TGPSolidBrush;
   stringFormat: TGPStringFormat;
-  l,t,w,h,d,s,radio: integer;
+  l, t, w, h, d, s, radio: Integer;
   txt: WideString;
+  DPI: Integer;
+  ScaleFactor: Single;
+  path: TGPGraphicsPath;
 begin
   inherited;
+
+  DPI := Screen.PixelsPerInch;
+  ScaleFactor := 1; //DPI / 96; // Assuming 96 DPI as the baseline
 
   radio := 42;
   d := radio div 2;
@@ -193,89 +203,163 @@ begin
   try
     bmp.PixelFormat := pf32bit;
     bmp.SetSize(Width, Height);
-    // let's clear the canvas with the color that is used as translucent in our aero
-    // it needs some tweaks though
+
+    // Clear the canvas with appropriate color
     if TaskbarAccented then
-      bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha(BlendColors(clBlack,GetAccentColor,50),200)
+      bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha(BlendColors(clBlack, GetAccentColor, 50), 200)
+    else if SystemUsesLightTheme then
+      bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($DDDDDD, 200)
     else
-      if SystemUsesLightTheme then
-        bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($dddddd,200)
+    begin
+      if isWindows11 then
+        bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha(BlendColors($2d2d2d, clBlack,25), 200)
       else
-        bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($222222,200);
-    bmp.Canvas.FillRect(Rect(0,0,Width,Height));
+        bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($222222, 200);
+    end;
+
+    bmp.Canvas.FillRect(Rect(0, 0, Width, Height));
 
     graph := TGPGraphics.Create(bmp.Canvas.Handle);
     try
-      //GdipSetSmoothingMode(graph, SmoothingModeAntiAlias);
-      //GdipSetCompositingMode(graph, CompositingModeSourceCopy);
       graph.SetSmoothingMode(SmoothingModeAntiAlias);
 
-      l := 0; t := 0;  w := Width-1;   h := Height-1;
+      l := 0; t := 0; w := Width - 1; h := Height - 1;
       style := FontStyleRegular;
-      //xfont := TGPFont.Create(bmp.canvas.Handle, _font.Handle);//.
-      xfont := TGPFont.Create(_font.Name, _font.Size, style, UnitPoint);
-      try
 
-        // let's draw
-        brush := TGPSolidBrush.Create(MakeGDIPColor(_disabledColor));//any color for now
+      xfont := TGPFont.Create(_font.Name, hidpi(_font.Size), style, UnitPixel);
+      try
+        brush := TGPSolidBrush.Create(MakeGDIPColor(_disabledColor));
         try
           if SystemUsesLightTheme then
-          pen := TGPPen.Create(MakeGDIPColor(clBlack,100),2)
+            pen := TGPPen.Create(MakeGDIPColor(clBlack, 100), 2 * ScaleFactor)
           else
-          pen := TGPPen.Create(MakeGDIPColor(_disabledColor,100),2); // any color  for now
+            pen := TGPPen.Create(MakeGDIPColor(_disabledColor, 100), 2 * ScaleFactor);
+            
           try
             if _enabled then
             begin
               if _mousepressed then
               begin
-                brush.SetColor(MakeGDIPColor(_pressedColor));
-                graph.FillRectangle(brush,MakeRect(0,0,Width-1,Height-1));
-                brush.SetColor(MakeGDIPColor(_disabledColor));
-              end;
-              if not _mousepressed and _mousehover then
+                if isWindows11 then
+                begin
+                end
+                else // win10
+                begin
+                  brush.SetColor(MakeGDIPColor(_pressedColor));
+                  graph.FillRectangle(brush, MakeRect(0, 0, Width - 1, Height - 1));
+                  brush.SetColor(MakeGDIPColor(_disabledColor));
+                end;
+              end
+              else if _mousehover then
+              begin
                 if SystemUsesLightTheme then
-                pen.SetColor(MakeGDIPColor($333333))
+                  pen.SetColor(MakeGDIPColor($333333))
                 else
-                pen.SetColor(MakeGDIPColor(_disabledColor));//(BlendColors(_disabledColor,clWhite,70)));
+                  pen.SetColor(MakeGDIPColor(_disabledColor));
+              end;
 
-              graph.DrawLine(pen,l,t,l+w,t);
-              graph.DrawLine(pen,l,t,l,t+h);
-              graph.DrawLine(pen,l,t+h,l+w,t+h);
-              graph.DrawLine(pen,l+w,t,l+w,t+h);
-              //draw knob
+              //draw button
+              d := HighDpi(8); //radio
+
+              if isWindows11 then
+              begin
+                path := TGPGraphicsPath.Create();
+                try
+                  path.AddArc(l + 1, t + 1, d, d, 180, 90);
+                  path.AddArc(l + w - d - 1, t + 1, d, d, 270, 90);
+                  path.AddArc(l + w - d - 1, t + h - 1 - d, d, d, 0, 90);
+                  path.AddArc(l + 1, t + h - d - 1, d, d, 90, 90);
+                  path.CloseFigure;
+                  if _mousepressed then
+                    brush.SetColor(MakeGDIPColor($303030))
+                  else
+                  begin
+                    if SystemUsesLightTheme then
+                      brush.SetColor(MakeGDIPColor($cccccc))
+                    else
+                      brush.SetColor($FF353535);
+                  end;
+                  graph.FillPath(brush, path);
+                finally
+                  path.Free;
+                end;
+                path := TGPGraphicsPath.Create();
+                try
+                  path.AddArc(l + 2, t + 2, d, d, 180, 90);
+                  path.AddArc(l + w - d - 2, t + 2, d, d, 270, 90);
+                  path.AddArc(l + w - d - 2, t + h - 2 - d, d, d, 0, 90);
+                  path.AddArc(l + 2, t + h - d - 2, d, d, 90, 90);
+                  path.CloseFigure;
+                  if _mousehover then
+                  begin
+                    if SystemUsesLightTheme then
+                      brush.SetColor($FFF5F5F5)
+                    else
+                      brush.SetColor($FF323232)
+                  end
+                  else
+                    if SystemUsesLightTheme then
+                      brush.SetColor($effbfbfb)
+                    else
+                      brush.SetColor($FF2D2D2D);
+
+                  if _mousepressed then
+                  begin
+                    if SystemUsesLightTheme then
+                      brush.SetColor($FFf5f5f5)
+                    else
+                      brush.SetColor($FF272727);
+                  end;
+
+                  graph.FillPath(brush, path);
+                finally
+                  path.Free;
+                end;
+
+              end
+              else //win10
+              begin
+                graph.DrawLine(pen, l, t, l + w, t);
+                graph.DrawLine(pen, l, t, l, t + h);
+                graph.DrawLine(pen, l, t + h, l + w, t + h);
+                graph.DrawLine(pen, l + w, t, l + w, t + h);
+              end;
+
+              // Draw knob
               pen.SetWidth(1);
-              pen.SetColor(MakeGDIPColor(_disabledColor,100));
-              graph.DrawLine(pen,l+w-22,t+13,l+w-22+6,t+13+6);
-              graph.DrawLine(pen,l+w-22+6+1,t+13+6,l+w-22+6+1+6,t+13);
+              if SystemUsesLightTheme then
+                pen.SetColor($FF333333)
+              else
+                pen.SetColor(MakeGDIPColor(_disabledColor, 100));
+              graph.DrawLine(pen, l + w - hidpi(22), t + hidpi(13), l + w - hidpi(22) + 6, t + hidpi(13) + 6);
+              graph.DrawLine(pen, l + w - hidpi(22) + 6 + 1, t + hidpi(13) + 6, l + w - hidpi(22) + 6 + 1 + 6, t + hidpi(13));
               pen.SetWidth(2);
             end;
-              //let's draw the string - caption
-              stringFormat := TGPStringFormat.Create;
-              try
-                stringFormat.SetAlignment(StringAlignmentNear);
-                stringFormat.SetLineAlignment(StringAlignmentCenter);
-                stringFormat.SetTrimming(StringTrimmingEllipsisCharacter);
-                stringFormat.SetFormatFlags(StringFormatFlagsNoWrap);
-                brush.SetColor(MakeGDIPColor($BBBBBB));
-                //graph.SetTextRenderingHint(TextRenderingHintClearTypeGridFit);                //graph.SetTextRenderingHint(TextRenderingHintAntiAlias);
-                graph.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
-                txt := _caption;
-                graph.DrawString(txt,Length(txt),xfont,MakePoint(15.0,(Height/2-_font.Size)),nil,brush);
-                graph.SetTextRenderingHint(TextRenderingHintSingleBitPerPixelGridFit);
-                if SystemUsesLightTheme then
+
+            // Draw the caption
+            stringFormat := TGPStringFormat.Create;
+            try
+              stringFormat.SetAlignment(StringAlignmentNear);
+              stringFormat.SetLineAlignment(StringAlignmentCenter);
+              stringFormat.SetTrimming(StringTrimmingEllipsisCharacter);
+              stringFormat.SetFormatFlags(StringFormatFlagsNoWrap);
+
+              brush.SetColor(MakeGDIPColor($BBBBBB));
+              graph.SetTextRenderingHint(TextRenderingHintAntiAliasGridFit);
+              txt := _caption;
+              graph.DrawString(txt, Length(txt), xfont, MakePoint(15.0 * ScaleFactor, (Height / 2 - hidpi(_font.Size)) * ScaleFactor + hidpi(_font.size div 3)), nil, brush);
+
+              graph.SetTextRenderingHint(TextRenderingHintSingleBitPerPixelGridFit);
+              if SystemUsesLightTheme then
                 brush.SetColor(MakeGDIPColor($333333))
-                else
+              else
                 brush.SetColor(MakeGDIPColor($FFFFFF));
-                graph.DrawString(txt,Length(txt),xfont,MakePoint(15.0,(Height/2-_font.Size)),nil,brush);
-                {graph.DrawString(txt,
-                                  length(txt),
-                                  xfont,
-                                  rectF,
-                                  stringFormat,
-                                  brush);}
-              finally
-                stringFormat.Free;
-              end;
+
+              if SystemUsesLightTheme then
+                graph.DrawString(txt, Length(txt), xfont, MakePoint(15.0 * ScaleFactor, (Height / 2 - _font.Size) * ScaleFactor), nil, brush);
+            finally
+              stringFormat.Free;
+            end;
           finally
             pen.Free;
           end;
@@ -288,13 +372,13 @@ begin
     finally
       graph.Free;
     end;
-    canvas.Draw(0,0,bmp);
 
-    //Windows.AlphaBlend(Canvas.Handle,0,0,Width, Height,bmp.Canvas.Handle, 0,0,Width,Height,MergeFunc);
+    Canvas.Draw(0, 0, bmp);
   finally
     bmp.Free;
   end;
 end;
+
 
 procedure TXCombobox.SetCaption(Value: string);
 begin
@@ -346,3 +430,4 @@ begin
 end;
 
 end.
+
