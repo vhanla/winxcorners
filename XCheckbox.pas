@@ -8,6 +8,9 @@ Changelog:
 TODO:
   Add animation, and mouse drag
   Add touch support
+- 24-06-11
+  Fix HighDpi support to draw radius correctly
+  Add Windows 11 style
 - 17-06-02
   Fixed vertical disabled line on HiDpi 125% or more
   Fixed knob ellipse relative to height ratio
@@ -96,8 +99,8 @@ end;
 constructor TXCheckbox.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  Width := 44;
-  Height := 20;
+  Width := HighDpi(44);
+  Height := HighDpi(20);
   _enabledcolor := clOlive;
   _disabledColor := clBlack;
   _pressedColor := $666666;
@@ -171,7 +174,7 @@ var
 begin
   inherited;
 
-  radio := 42;
+  radio := HighDpi(42);
   d := radio div 2;
   s := d div 2; // guide for lines width
 
@@ -187,7 +190,12 @@ begin
       if SystemUsesLightTheme then
         bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($dddddd,200)
       else
-        bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($222222,200);
+      begin
+        if isWindows11 then
+          bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha(BlendColors($2d2d2d, clBlack,25), 200)
+        else
+          bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($222222,200);
+      end;
     bmp.Canvas.FillRect(Rect(0,0,Width,Height));
 
     graph := TGPGraphics.Create(bmp.Canvas.Handle);
@@ -220,7 +228,7 @@ begin
               brush.SetColor(MakeGDIPColor(clWhite));
 
               //graph.FillEllipse(brush,MakeRect(Width-5-9-1,5,9,9));
-              graph.FillEllipse(brush,MakeRect(Width-5-(h-10)-1,5,h-10,h-10));
+              graph.FillEllipse(brush,MakeRect(Width-5-(h-10)-1,5,h-10,h-10));//white circle
             end
             else
             begin
