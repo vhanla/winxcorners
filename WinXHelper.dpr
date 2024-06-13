@@ -35,6 +35,7 @@ var
   TargetWnd: THandle;
   Msg: PCopyDataStruct;
 //  MsgStr: String;
+  aNil: Cardinal;
 begin
   //if Code < 0 then
   if (Code < 0) or (Code = HC_NOREMOVE) then
@@ -61,7 +62,8 @@ begin
       Msg^.cbData := SizeOf(TMouseHookStruct) + 1;
       Msg^.lpData := PMouseHookStruct(lParam);
       //PostMessage(TargetWnd, WM_COPYDATA, CurWnd, Integer(Msg));
-      SendMessageTimeout(TargetWnd, WM_COPYDATA, 0, Integer(Msg), SMTO_ABORTIFHUNG, 50, nil);
+      aNil := 0;
+      SendMessageTimeout(TargetWnd, WM_COPYDATA, 0, Integer(Msg), SMTO_ABORTIFHUNG, 50, aNil);
       Dispose(Msg);
     end;
   end;
@@ -98,6 +100,8 @@ begin
 end;
 
 procedure RunHook; stdcall;
+const
+  WH_MOUSE_LL = 14;
 begin
   GlobalData^.HookHandle := SetWindowsHookEx(WH_MOUSE_LL, @HookProc, HInstance, 0);
   if GlobalData^.HookHandle = INVALID_HANDLE_VALUE then

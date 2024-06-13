@@ -1,42 +1,25 @@
 program WinXCorners;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-{$R *.dres}
+{.$R *.dres}
 
 uses
-  madExcept,
-  madLinkDisAsm,
-  madListHardware,
-  madListProcesses,
-  madListModules,
-  Vcl.Forms,
-  Winapi.Windows,
+  Forms,
+  Windows,
   Main in 'Main.pas' {frmMain},
   frmSettings in 'frmSettings.pas' {frmTrayPopup},
   XCombobox in 'XCombobox.pas',
   osdgui in 'osdgui.pas' {frmOSD},
-  frmAdvanced in 'frmAdvanced.pas' {frmAdvSettings};
+  frmAdvanced in 'frmAdvanced.pas' {frmAdvSettings},
+  functions in 'functions.pas';
 
 {$R *.res}
+{$R PNGIMAGE_1.res}
+{$R PNGIMAGE_2.res}
+{$R ICON_1.res}
+{$R ICON_2.res}
+{$R ICON_3.res}
+{$ifdef ver360}
+{$R Manifest1.res}
+{$endif}
 
 var
   AppHandle: HWND;
@@ -50,7 +33,7 @@ begin
 
   Application.Initialize;
   Application.ShowMainForm := False;
-  Application.MainFormOnTaskbar := False;
+//  Application.MainFormOnTaskbar := False;
   Application.Title := 'WinXCorners';
   Application.CreateForm(TfrmMain, frmMain);
   Application.CreateForm(TfrmTrayPopup, frmTrayPopup);

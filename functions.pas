@@ -17,8 +17,7 @@ unit functions;
 interface
 
 uses
-Windows, Classes, TlHelp32, PsAPI, SysUtils, Registry, Graphics, DWMApi, PNGImage{,
-UXTHeme, Themes} {uxtheme and themes for rendering text on glass },
+Windows, Classes, TlHelp32, PsAPI, SysUtils, Registry, Graphics, DWMApi, PNGImage,
 OleAcc, Variants, DirectDraw, ActiveX;
 
 const
