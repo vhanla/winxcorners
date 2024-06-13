@@ -195,8 +195,8 @@ end;
 
 procedure TfrmTrayPopup.FormCreate(Sender: TObject);
 begin
-  if not SystemUsesLightTheme then
-    UseImmersiveDarkMode(Handle, True);
+//  if not SystemUsesLightTheme then
+//    UseImmersiveDarkMode(Handle, True);
 
   EnableNCShadow(Handle);
 

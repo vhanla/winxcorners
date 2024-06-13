@@ -160,10 +160,10 @@ procedure TfrmAdvSettings.FormCreate(Sender: TObject);
 begin
 //  if not SystemUsesLightTheme then
 //  begin
-    AllowDarkModeForWindow(Handle, True);
-    AllowDarkModeForApp(True);
-    SetPreferredAppMode(1);
-    DarkMode;
+//    AllowDarkModeForWindow(Handle, True);
+//    AllowDarkModeForApp(True);
+//    SetPreferredAppMode(1);
+//    DarkMode;
 //  end;
 
   FormStyle := fsStayOnTop;

@@ -143,7 +143,7 @@ type
   public
     { Public declarations }
     procedure CreateParams(var Params: TCreateParams); override;
-    procedure UpdateTrayIcon(grayed: boolean = False);
+    procedure UpdateTrayIcon(grayed: boolean = False; recreate: Boolean = False);
 
   end;
 
@@ -206,8 +206,12 @@ begin
 
   if not SystemUsesLightTheme then
   begin
+    AllowDarkModeForWindow(Handle, True);
+    AllowDarkModeForApp(True);
     SetPreferredAppMode(1);
     DarkMode;
+//    SetPreferredAppMode(1);
+//    DarkMode;
   end;
 end;
 
@@ -832,26 +836,30 @@ begin
 
 end;
 
-procedure TfrmMain.UpdateTrayIcon(grayed: boolean);
+procedure TfrmMain.UpdateTrayIcon(grayed: boolean = False; recreate: Boolean = False);
 var
   toUpdate: Boolean;
+  usesLightTheme: Boolean;
 begin
   if SystrayIcon = nil then
     SystrayIcon := TIcon.Create;
 
+  usesLightTheme := SystemUsesLightTheme;
+
   if grayed then
-    if SystemUsesLightTheme then
+    if usesLightTheme then
       SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_1')
     else
       SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_2')
   else
-    if SystemUsesLightTheme then
+    if usesLightTheme then
       SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_3')
     else
       SystrayIcon.Handle := LoadIcon(HInstance, 'Icon_1');
 
   toUpdate := False;
-  if iconData.Wnd <> 0 then
+  
+  if (iconData.Wnd <> 0) and not recreate then
     toUpdate := True;
 
   with iconData do
@@ -938,8 +946,31 @@ procedure TfrmMain.WndProc(var Msg: TMessage);
 begin
   if Msg.Msg = wmTaskbarRestartMsg then
   begin
-    Shell_NotifyIcon(NIM_ADD, @iconData);
+    UpdateTrayIcon(False, True);
+  end
+  else if Msg.Msg = WM_SETTINGCHANGE then
+  begin
+    if Msg.WParam = WPARAM(SPI_SETFLATMENU) then // menues change coloring on light theme or dark theme
+    begin
+      UpdateTrayIcon();
+      if not SystemUsesLightTheme then
+      begin
+        AllowDarkModeForWindow(Handle, True);
+        AllowDarkModeForApp(True);
+        SetPreferredAppMode(1);
+        DarkMode;
+      end
+      else
+      begin
+        AllowDarkModeForWindow(Handle, False);
+        AllowDarkModeForApp(False);
+        SetPreferredAppMode(0);
+        DarkMode;
+      end;
+    end;
+
   end;
+
 
   if Msg.Msg = WM_WTSSESSION_CHANGE then
   begin
