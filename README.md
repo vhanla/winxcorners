@@ -124,7 +124,7 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
 | v1.3.0 (2024) | v1.2.1b (2019) |
 |:---------------:|:-----------------:|
 | ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)| ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)| 
-| [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/latest/WinXcorners130.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/v1.3.0/WinXcorners130.zip) | [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/1.2.1b/WinXCornersRegistryFix.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/1.2.1b/WinXCornersRegistryFix.zip) |
+| [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/latest/winxcorners130.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/1.3.0/WinXcorners130.zip) | [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/1.2.1b/WinXCornersRegistryFix.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/1.2.1b/WinXCornersRegistryFix.zip) |
 
 
 
