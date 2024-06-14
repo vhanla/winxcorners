@@ -23,23 +23,27 @@
 
 <div align="center">
   <h4>
-    <a href="#">
+    <a href="#winxcorners">
       WinXcorners
     </a>
     <span> | </span>
-    <a href="#">
+    <a href="#features">
       Features
     </a>
     <span> | </span>
-    <a href="#">
-      Downloads
+    <a href="#howto">
+      How To
     </a>
     <span> | </span>
-    <a href="#">
+    <a href="#download">
+      Download
+    </a>
+    <span> | </span>
+    <a href="#development">
       Development
     </a>
     <span> | </span>
-    <a href="#">
+    <a href="#contribution">
       Contribution
     </a>    
   </h4>
@@ -52,19 +56,13 @@
   </a>  
 </div-->
 
-## WinXcorners
+## <a name="winxcorners"></a> WinXcorners
 WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances your desktop experience by allowing you to assign custom actions triggered when you hover your mouse cursor over the corners of your main monitor. Whether you're a power user, developer, or just someone who appreciates efficiency, WinXcorners provides a seamless way to streamline your workflow.
 
-## Key Features
+## <a name="features"></a> Key Features <a href="#winxcorners">⬆️</a>
 
 1. **Corner Actions**: Choose from a variety of predefined actions for each corner:
-    <details>
-        <summary>
-            <strong>Show All Windows:</strong> Activate Windows' Task View `Win`+`Tab` to manage your open applications.
-        </summary>
-        <p align="center"><video src="https://private-user-images.githubusercontent.com/1015823/339573857-e76a408c-db68-4b01-b5e7-6c991b23306c.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTgzMTk0NzMsIm5iZiI6MTcxODMxOTE3MywicGF0aCI6Ii8xMDE1ODIzLzMzOTU3Mzg1Ny1lNzZhNDA4Yy1kYjY4LTRiMDEtYjVlNy02Yzk5MWIyMzMwNmMubXA0P1gtQW16LUFsZ29yaXRobT1BV1M0LUhNQUMtU0hBMjU2JlgtQW16LUNyZWRlbnRpYWw9QUtJQVZDT0RZTFNBNTNQUUs0WkElMkYyMDI0MDYxMyUyRnVzLWVhc3QtMSUyRnMzJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyNDA2MTNUMjI1MjUzWiZYLUFtei1FeHBpcmVzPTMwMCZYLUFtei1TaWduYXR1cmU9YjQ2ZWY2MTE0Yzk0YTkyMmI5ZGYzZTYwZjczMDEzOTVmOWJkZjE3MzEyNTBmZTA2MzViZTY5ODAzMzlmZWU5NSZYLUFtei1TaWduZWRIZWFkZXJzPWhvc3QmYWN0b3JfaWQ9MCZrZXlfaWQ9MCZyZXBvX2lkPTAifQ.a3lscQfOnOHr9iDYV4l8vKi8mBqrICrVh2B-d2u0yaM"/></p>
-    </details>
-    
+    - [x] **Show All Windows**: Activate Windows' Task View `Win`+`Tab` to manage your open applications.
     - [x] **Show Desktop**: Quickly minimize all windows and reveal the desktop.
     - [x] **Start Screen Saver**: Trigger your screen saver for privacy or energy-saving purposes.
     - [x] **Turn Off Monitors**: Conveniently turn off your display when not in use.
@@ -96,11 +94,28 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
 | Dark Theme Windows 10                                     | Light Theme Windows 10 May 2019 Update onwards                                       |
 | ![snp4](https://lh3.googleusercontent.com/-7ja-oixZ058/Vh-zjp8pRpI/AAAAAAAALQo/h4y4EPuoBbY/WinXCorners%25255B9%25255D%25255B1%25255D.jpg?imgmax=800)| ![imagen](https://user-images.githubusercontent.com/1015823/59126095-d2835e80-8929-11e9-9b89-6023164aaa8d.png)|
 
+## Demo Video
+<details>
+<summary>
+    <strong>🎞</strong> 
+</summary>
+<p>This demonstration would change on following versions.</p>
+</details>
+<p align="center"><video src="https://private-user-images.githubusercontent.com/1015823/339573857-e76a408c-db68-4b01-b5e7-6c991b23306c.mp4?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MTgzMTk0NzMsIm5iZiI6MTcxODMxOTE3MywicGF0aCI6Ii8xMDE1ODIzLzMzOTU3Mzg1Ny1lNzZhNDA4Yy1kYjY4LTRiMDEtYjVlNy02Yzk5MWIyMzMwNmMubXA0P1gtQW16LUFsZ29yaXRobT1BV1M0LUhNQUMtU0hBMjU2JlgtQW16LUNyZWRlbnRpYWw9QUtJQVZDT0RZTFNBNTNQUUs0WkElMkYyMDI0MDYxMyUyRnVzLWVhc3QtMSUyRnMzJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyNDA2MTNUMjI1MjUzWiZYLUFtei1FeHBpcmVzPTMwMCZYLUFtei1TaWduYXR1cmU9YjQ2ZWY2MTE0Yzk0YTkyMmI5ZGYzZTYwZjczMDEzOTVmOWJkZjE3MzEyNTBmZTA2MzViZTY5ODAzMzlmZWU5NSZYLUFtei1TaWduZWRIZWFkZXJzPWhvc3QmYWN0b3JfaWQ9MCZrZXlfaWQ9MCZyZXBvX2lkPTAifQ.a3lscQfOnOHr9iDYV4l8vKi8mBqrICrVh2B-d2u0yaM"/></p>
 
-## Installation (Portable)
+## <a name="download"></a> Installation (Portable) <a href="#winxcorners">⬆️</a>
 1. Download the latest release from the GitHub repository.
 2. Just unzip into a secure folder.
 3. Run the single small executable, settings will be written/saved there.
+4. 💡 It will run minimized and hidden in the **System Tray**
+
+## Requirements
+
+    — OS: Windows 10 x86/x64  | Windows 11 
+    — HDD: 1.4 MB 
+    — RAM: 9 MB
+
+
 
 ## Download and Installation *(?)*
 
@@ -109,11 +124,11 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
 | v1.3.0 (2024) | v1.2.1b (2019) |
 |:---------------:|:-----------------:|
 | ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)| ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)| 
-| [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/latest/WinXcorners130.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/v1.3.0/WinXcorners130.zip) | [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/1.2.1b/WinXCornersRegistryFix.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/v1.2.1b/WinXCornersRegistryFix.zip) |
+| [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/latest/WinXcorners130.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/v1.3.0/WinXcorners130.zip) | [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/1.2.1b/WinXCornersRegistryFix.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/1.2.1b/WinXCornersRegistryFix.zip) |
 
 
 
-## Usage
+## <a name="howto"></a> How To Use  <a href="#winxcorners">⬆️</a>
 1. Launch WinXcorners popup window from the system tray icon.
 2. Configure your preferred actions for each corner.
 3. Hover your mouse cursor over a corner to trigger the assigned action.
@@ -122,10 +137,10 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
 1. Right click the WinXcorners tray icon.
 2. Select **Advanced** to open the more advanced options.
 
-|  | 
-|:-------------------------------------------------:|
-|![snp5](https://lh3.googleusercontent.com/-NtNXrUcUUus/V6VlOWJMPeI/AAAAAAAALxM/hmfgAnoSvK8/image%25255B12%25255D.png?imgmax=800)|
-|Windows 10 *old snapshot* | 
+|  | |
+|:-------------------------------------------------:|:-------------------------------------------------:|
+|![snap02](https://github.com/vhanla/winxcorners/blob/master/.github/snap03.jpg?raw=true)|![snp5](https://lh3.googleusercontent.com/-NtNXrUcUUus/V6VlOWJMPeI/AAAAAAAALxM/hmfgAnoSvK8/image%25255B12%25255D.png?imgmax=800)|
+|Advanced options v 1.3.0 | Advanced options v 1.2.1b *old snapshot* | 
 
 3. There you can:
     - Set a global delay, so the action will trigger after some few seconds.
@@ -138,17 +153,17 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
 - If you encounter issues with elevated privileges software, try restarting WinXcorners as an administrator specially if you use those kind of elevated privileged software most of the time, otherwise triggering won't work due to the nature of separate privileges.
 - If you encounter other unknown issues, please fill a bug report at the GitHub issues page.
 
-## Requirements
-
-    — OS: Windows 10 x86/x64  | Windows 11 
-    — HDD: 1.4 MB 
-    — RAM: 9 MB
-
-
 **Limitations**:
 
     Sometimes the application won't detect the screen edges if you are using (focused) an elevated privileged application. But you can always restart the application as administrator.
 
+## <a name="development"></a> Development <a href="#winxcorners">⬆️</a>
+
+Build with Delphi 2006 onwards, third party units are in thirdparty and all rights belong to each of them, they're open source too.
+
+## <a name="contribution"></a> Contribution <a href="#winxcorners">⬆️</a>
+
+You're welcome to PR your improvements.
 
 MIT License
 
