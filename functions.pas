@@ -57,6 +57,8 @@ function GetProcessNameFromWnd(Wnd: HWND): string;
 function isWindows10: boolean;
 function isAcrylicSupported:boolean;
 function SystemUsesLightTheme:boolean;
+//!DC MakeWindowTransparent
+procedure MakeWindowTransparent(Handle: HWND; isBlurEnabled: Boolean);
 procedure EnableBlur(Wnd: HWND; Enable: Boolean = True);
 function GetAccentColor:TColor;
 function TaskbarTranslucent:Boolean;
@@ -300,6 +302,40 @@ begin
   end;
 end;
 
+// !DC
+procedure MakeWindowTransparent(Handle: HWND; isBlurEnabled: Boolean);
+var
+  blurBehindSettings: DWM_BLURBEHIND;
+  regionHandle, rectangleRegion: HRGN;
+  titlebarHeight: Integer;
+  isCompositionEnabled: BOOL;
+begin
+  DwmIsCompositionEnabled(isCompositionEnabled);
+  if isCompositionEnabled  then
+  begin
+    blurBehindSettings.fEnable := False;
+    regionHandle := 64;
+    blurBehindSettings.hRgnBlur := 64;
+    blurBehindSettings.fTransitionOnMaximized := False;
+    blurBehindSettings.dwFlags := 1;
+    if isBlurEnabled then
+    begin
+      titlebarHeight := GetSystemMetrics(SM_CYCAPTION);
+      rectangleRegion := CreateRectRgn(-8 -titlebarHeight, 0, -8- titlebarHeight + 1, 1);
+      regionHandle := rectangleRegion;
+      if rectangleRegion <> 0 then
+      begin
+        blurBehindSettings.dwFlags := blurBehindSettings.dwFlags or 2;
+        blurBehindSettings.fEnable := True;
+        blurBehindSettings.hRgnBlur := rectangleRegion;
+      end;
+    end;
+    DwmEnableBlurBehindWindow(Handle, blurBehindSettings);
+    if regionHandle <> 0 then
+      DeleteObject(regionHandle);
+  end;
+end;
+
 procedure EnableBlur(Wnd: HWND; Enable: Boolean = True);
 const
   WCA_ACCENT_POLICY = 19;
@@ -314,22 +350,30 @@ const
 var
   data: TWinCompAttrData;
   accent: AccentPolicy;
+  attrparam: BOOL;
 begin
-  if Enable then
+  MakeWindowTransparent(Wnd, Enable);
+  if SetLayeredWindowAttributes(Wnd, 0, 0, LWA_ALPHA) then //!DC ?
   begin
-    if isAcrylicSupported then    
-      accent.AccentState := ACCENT_ENABLE_ACRYLICBLURBEHIND
+    if Enable then
+    begin
+     if isAcrylicSupported then
+       accent.AccentState := ACCENT_ENABLE_ACRYLICBLURBEHIND
+     else
+       accent.AccentState := ACCENT_ENABLE_BLURBEHIND
+    end
     else
-      accent.AccentState := ACCENT_ENABLE_BLURBEHIND
-  end
-  else
-  accent.AccentState := ACCENT_ENABLE_TRANSPARENTGRADIENT;
-  accent.AccentFlags := DRAW_LEFT_BORDER or DRAW_TOP_BORDER or DRAW_RIGHT_BORDER or DRAW_BOTTOM_BORDER;
+    accent.AccentState := ACCENT_ENABLE_TRANSPARENTGRADIENT;
+    accent.AccentFlags := DRAW_LEFT_BORDER or DRAW_TOP_BORDER or DRAW_RIGHT_BORDER or DRAW_BOTTOM_BORDER;
 
-  data.attribute := WCA_ACCENT_POLICY;
-  data.dataSize := SizeOf(accent);
-  data.pData := @accent;
-  SetWindowCompositionAttribute(Wnd, data);
+    data.attribute := WCA_ACCENT_POLICY;
+    data.dataSize := SizeOf(accent);
+    data.pData := @accent;
+    SetWindowCompositionAttribute(Wnd, data);
+
+    // !DC ?
+    attrparam := True; DwmSetWindowAttribute(Wnd, DWMWA_EXCLUDED_FROM_PEEK, @attrparam , SizeOf(BOOL) );
+  end;
 end;
 
 function GetAccentColor:TColor;
@@ -695,7 +739,6 @@ begin
 //  if FindWindow('MultitaskingViewFrame', nil) > 0 then Exit; // win10
 //  if FindWindow('XamlExplorerHostIslandWindow', nil) > 0 then Exit; // win11
 
-  
 
 
   Mon := Screen.MonitorFromWindow(curwnd);
@@ -703,6 +746,8 @@ begin
   GetWindowPlacement(curwnd, @wndPlm);
   if (wndPlm.showCmd and SW_SHOWMAXIMIZED) = SW_SHOWMAXIMIZED then
   begin
+    // Ignore clickthrough windows
+    if GetWindowLong(curwnd, GWL_EXSTYLE) and WS_EX_TRANSPARENT <> WS_EX_TRANSPARENT then
     if ((Mon.BoundsRect.Right -Mon.BoundsRect.Left) = (R.Right - R.Left))
     and ((Mon.BoundsRect.Bottom - Mon.BoundsRect.Top) = (R.Bottom - R.Top)) then
       Result := True;
@@ -719,6 +764,8 @@ begin
 //    or ((Screen.MonitorCount > 1) and (FindWindow('Shell_SecondaryTrayWnd', nil)=0) and (Mon.WorkareaRect = Mon.BoundsRect))
 //    then
     begin
+    // Ignore clickthrough windows
+    if GetWindowLong(curwnd, GWL_EXSTYLE) and WS_EX_TRANSPARENT <> WS_EX_TRANSPARENT then
       if ((Mon.BoundsRect.Right - Mon.BoundsRect.Left) = (R.Right - R.Left))
       and ((Mon.BoundsRect.Bottom - Mon.BoundsRect.Top) = (R.BOttom - R.Top)) then
         Result := True;
