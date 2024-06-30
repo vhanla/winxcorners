@@ -82,9 +82,14 @@ function isHighContrast: Boolean;
 function DetectFullScreen3D: Boolean;
 function DetectFullScreenApp: Boolean;
 
+function AllowSetForegroundWindow(dwProcessId: DWORD): BOOL; stdcall;
+  external user32 Name 'AllowSetForegroundWindow';
 
-  procedure SwitchToThisWindow(h1: hWnd; x: bool); stdcall;
+procedure SwitchToThisWindow(h1: hWnd; x: bool); stdcall;
   external user32 Name 'SwitchToThisWindow';
+
+procedure SwitchToThisWindowEx(handle: HWND; force: Boolean = True);
+
 function SetWindowCompositionAttribute(Wnd: HWND; const AttrData: TWinCompAttrData): BOOL; stdcall;
   external user32 Name 'SetWindowCompositionAttribute';
 
@@ -347,6 +352,7 @@ const
   DRAW_TOP_BORDER = $40;
   DRAW_RIGHT_BORDER = $80;
   DRAW_BOTTOM_BORDER = $100;
+  DWMWA_EXCLUDED_FROM_PEEK          = 12; // [set] LivePreview exclusion information
 var
   data: TWinCompAttrData;
   accent: AccentPolicy;
@@ -773,4 +779,36 @@ begin
     end;
   end;
 end;
+
+procedure SwitchToThisWindowEx(handle: HWND; force: Boolean = True);
+var
+  curWnd: THANDLE;
+  curWndProcThread, procThread: DWORD;
+  fclientID: DWORD;
+begin
+  SwitchToThisWindow(handle, True);
+  if GetForegroundWindow = handle then Exit;
+  
+  curWnd := GetForegroundWindow;
+  curWndProcThread := GetWindowThreadProcessId(curWnd, @fclientId);
+  if curWndProcThread <> 0 then
+  begin
+    AllowSetForegroundWindow(fclientId);
+    procThread := GetCurrentThreadId;
+
+    if not SetForegroundWindow(Handle) then
+      SwitchToThisWindow(GetDesktopWindow, True);
+
+    if curWndProcThread <> procThread then
+    begin
+      AttachThreadInput(curWndProcThread, procThread, True);
+      BringWindowToTop(handle);
+      Windows.SetFocus(Handle);
+      AttachThreadInput(curWndProcThread, procThread, False);
+    end;
+
+    SwitchToThisWindow(handle, True);
+  end;
+end;
+
 end.
