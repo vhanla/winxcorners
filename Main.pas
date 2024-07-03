@@ -25,6 +25,13 @@ Features requested:
 - Virtual Desktop Screen switcher
 
 CHANGELOG:
+- 24-06-30
+  Add settings helper with json support
+  Add improved workaround for activating on elevated process while being unelevated
+- 24-06-29
+  Add custom hotkey support (hotkeyhelper unit)
+  Add ctrl+alt+tab alternative to win+tab
+  !Add explorer CLSID special arguments for Task View and Show Desktop, but they're slow compared to hotkeys
 - 24-06-09
   Add VirtualDesktop support for Windows 10 and 11
   Add DarkMode support for Windows 10 and 11 (partial)
@@ -154,15 +161,13 @@ var
 
 //  Screens : TObjectList<TScreens>;
 
-procedure SwitchToThisWindow(h1: hWnd; x: bool); stdcall;
-external user32 Name 'SwitchToThisWindow';
 //  procedure RunHook(Handle: HWND); cdecl; external 'WinXHelper.dll' name 'RunHook';
 //  procedure KillHook; cdecl; external 'WinXHelper.dll' name 'KillHook';
 
 implementation
 
 uses
-  functions, frmSettings, osdgui, frmAdvanced, Types;
+  functions, frmSettings, osdgui, frmAdvanced, Types, hotkeyhelper;
 {$R *.dfm}
 
 const
@@ -301,43 +306,54 @@ begin
         //if ProcessIsElevated(OpenProcess(PROCESS_ALL_ACCESS, False, procid)) then
           //SwitchToThisWindow(Application.Handle, True);
 
-        //if GetForegroundWindow <> FindWindow('MultitaskingViewFrame','Vista Tareas') then
-          if GetForegroundWindow <> FindWindow('MultitaskingViewFrame', nil) then
-            SwitchToThisWindow(Application.Handle, True);
+          //Windows.UI.Core.CoreWindow = classname of the Windows 10 Task View
 
-          keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), 0, 0);
-          Sleep(10);
-          keybd_event(VK_TAB, MapVirtualKey(VK_TAB, 0), 0, 0);
-          Sleep(10);
-          keybd_event(VK_TAB, MapVirtualKey(VK_TAB, 0), KEYEVENTF_KEYUP, 0);
-          Sleep(100);
-          keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), KEYEVENTF_KEYUP, 0);
-          Sleep(100);
+        //if GetForegroundWindow <> FindWindow('MultitaskingViewFrame','Vista Tareas') then
+          if GetForegroundWindow = FindWindow('MultitaskingViewFrame', nil) then
+            THotkeyInvoker.Instance.InvokeHotKey('escape')
+          else
+          begin
+            SwitchToThisWindowEx(Application.Handle, True);
+
+//          ShellExecute(0, 'open', 'C:\Windows\explorer.exe', 'shell:::{3080F90E-D7AD-11D9-BD98-0000947B0257}', nil, SW_SHOWNORMAL);
+//          keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), 0, 0);
+//          Sleep(10);
+//          keybd_event(VK_TAB, MapVirtualKey(VK_TAB, 0), 0, 0);
+//          Sleep(10);
+//          keybd_event(VK_TAB, MapVirtualKey(VK_TAB, 0), KEYEVENTF_KEYUP, 0);
+//          Sleep(100);
+//          keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), KEYEVENTF_KEYUP, 0);
+//          Sleep(100);
+            THotkeyInvoker.Instance.InvokeHotKey('_win+tab');
+          end;
         end;
       end;
     haActionCenter:
       begin
-        SwitchToThisWindow(Application.Handle, True);
-        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), 0, 0);
-        Sleep(10);
-        keybd_event(Ord('A'), MapVirtualKey(Ord('A'), 0), 0, 0);
-        Sleep(10);
-        keybd_event(Ord('A'), MapVirtualKey(Ord('A'), 0), KEYEVENTF_KEYUP, 0);
-        Sleep(100);
-        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), KEYEVENTF_KEYUP, 0);
-        Sleep(100);
+//        SwitchToThisWindow(Application.Handle, True);
+//        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), 0, 0);
+//        Sleep(10);
+//        keybd_event(Ord('A'), MapVirtualKey(Ord('A'), 0), 0, 0);
+//        Sleep(10);
+//        keybd_event(Ord('A'), MapVirtualKey(Ord('A'), 0), KEYEVENTF_KEYUP, 0);
+//        Sleep(100);
+//        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), KEYEVENTF_KEYUP, 0);
+//        Sleep(100);
+          THotkeyInvoker.Instance.InvokeHotKey('_win+a');
       end;
     haDesktop:
       begin
-        SwitchToThisWindow(Application.Handle, True);
-        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), 0, 0);
-        Sleep(10);
-        keybd_event(Ord('D'), MapVirtualKey(Ord('D'), 0), 0, 0);
-        Sleep(10);
-        keybd_event(Ord('D'), MapVirtualKey(Ord('D'), 0), KEYEVENTF_KEYUP, 0);
-        Sleep(100);
-        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), KEYEVENTF_KEYUP, 0);
-        Sleep(100);
+        SwitchToThisWindowEx(Application.Handle, True);
+//        ShellExecute(0, 'open', 'C:\Windows\explorer.exe', 'shell:::{3080F90D-D7AD-11D9-BD98-0000947B0257}', nil, SW_SHOWNORMAL);
+//        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), 0, 0);
+//        Sleep(10);
+//        keybd_event(Ord('D'), MapVirtualKey(Ord('D'), 0), 0, 0);
+//        Sleep(10);
+//        keybd_event(Ord('D'), MapVirtualKey(Ord('D'), 0), KEYEVENTF_KEYUP, 0);
+//        Sleep(100);
+//        keybd_event(VK_LWIN, MapVirtualKey(VK_LWIN, 0), KEYEVENTF_KEYUP, 0);
+//        Sleep(100);
+        THotkeyInvoker.Instance.InvokeHotKey('_win+d');
       end;
     haScreenSaver:
       begin
@@ -351,40 +367,28 @@ begin
       begin
         if frmAdvSettings.chkCustom.Checked then
         begin
-          if frmAdvSettings.chkHidden.Checked then
-            ShellExecute(0, 'OPEN', PChar(cmdcli[0]), PChar(cmdarg[0]), '', SW_HIDE)
-          else
-            ShellExecute(0, 'OPEN', PChar(cmdcli[0]), PChar(cmdarg[0]), '', SW_SHOWNORMAL);
+          RunCommand(cmdcli[0], cmdarg[0], frmAdvSettings.chkHidden.Checked);
         end;
       end;
     haCustomCmd2:
       begin
         if frmAdvSettings.chkCustom.Checked then
         begin
-          if frmAdvSettings.chkHidden.Checked then
-            ShellExecute(0, 'OPEN', PChar(cmdcli[1]), PChar(cmdarg[1]), '', SW_HIDE)
-          else
-            ShellExecute(0, 'OPEN', PChar(cmdcli[1]), PChar(cmdarg[1]), '', SW_SHOWNORMAL);
+          RunCommand(cmdcli[1], cmdarg[1], frmAdvSettings.chkHidden.Checked);
         end;
       end;
     haCustomCmd3:
       begin
         if frmAdvSettings.chkCustom.Checked then
         begin
-          if frmAdvSettings.chkHidden.Checked then
-            ShellExecute(0, 'OPEN', PChar(cmdcli[2]), PChar(cmdarg[2]), '', SW_HIDE)
-          else
-            ShellExecute(0, 'OPEN', PChar(cmdcli[2]), PChar(cmdarg[2]), '', SW_SHOWNORMAL);
+          RunCommand(cmdcli[2], cmdarg[2], frmAdvSettings.chkHidden.Checked);
         end;
       end;
     haCustomCmd4:
       begin
         if frmAdvSettings.chkCustom.Checked then
         begin
-          if frmAdvSettings.chkHidden.Checked then
-            ShellExecute(0, 'OPEN', PChar(cmdcli[3]), PChar(cmdarg[3]), '', SW_HIDE)
-          else
-            ShellExecute(0, 'OPEN', PChar(cmdcli[3]), PChar(cmdarg[3]), '', SW_SHOWNORMAL);
+          RunCommand(cmdcli[3], cmdarg[3], frmAdvSettings.chkHidden.Checked);
         end;
       end;
     haToggleOtherWindows:
@@ -550,9 +554,9 @@ begin
 
           if frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayTopLeft.Checked then
           begin
-            hotActionDelay := StrToInt(frmAdvSettings.valDelayGlobal.Text);
+            hotActionDelay := frmAdvSettings.cbvalDelayGlobal.ItemIndex + 1; // start from 1 loop, since 0 would be disabled
             if frmAdvSettings.chkDelayTopLeft.Enabled then
-              hotActionDelay := StrToInt(frmAdvSettings.valDelayTopLeft.Text);
+              hotActionDelay := frmAdvSettings.cbValDelayTopLeft.ItemIndex + 1;
 
             hotActionDelayCounter := 0;
             tmrDelay.Enabled := True;
@@ -597,9 +601,9 @@ begin
 
           if frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayTopRight.Checked then
           begin
-            hotActionDelay := StrToInt(frmAdvSettings.valDelayGlobal.Text);
+            hotActionDelay := frmAdvSettings.cbValDelayGlobal.ItemIndex + 1;
             if frmAdvSettings.chkDelayTopRight.Enabled then
-              hotActionDelay := StrToInt(frmAdvSettings.valDelayTopRight.Text);
+              hotActionDelay := frmAdvSettings.cbValDelayTopRight.ItemIndex + 1;
 
             hotActionDelayCounter := 0;
             tmrDelay.Enabled := True;
@@ -644,9 +648,9 @@ begin
 
           if frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayBotLeft.Checked then
           begin
-            hotActionDelay := StrToInt(frmAdvSettings.valDelayGlobal.Text);
+            hotActionDelay := frmAdvSettings.cbValDelayGlobal.ItemIndex + 1;
             if frmAdvSettings.chkDelayBotLeft.Enabled then
-              hotActionDelay := StrToInt(frmAdvSettings.valDelayBotLeft.Text);
+              hotActionDelay := frmAdvSettings.cbValDelayBotLeft.ItemIndex + 1;
 
             hotActionDelayCounter := 0;
             tmrDelay.Enabled := True;
@@ -691,9 +695,9 @@ begin
 
           if frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayBotRight.Checked then
           begin
-            hotActionDelay := StrToInt(frmAdvSettings.valDelayGlobal.Text);
+            hotActionDelay := frmAdvSettings.cbValDelayGlobal.ItemIndex + 1;
             if frmAdvSettings.chkDelayBotRight.Enabled then
-              hotActionDelay := StrToInt(frmAdvSettings.valDelayBotRight.Text);
+              hotActionDelay := frmAdvSettings.cbValDelayBotRight.ItemIndex + 1;
 
             hotActionDelayCounter := 0;
             tmrDelay.Enabled := True;

@@ -6,19 +6,19 @@ object frmMain: TfrmMain
   Margins.Right = 2
   Margins.Bottom = 2
   Caption = 'frmMain'
-  ClientHeight = 343
-  ClientWidth = 528
+  ClientHeight = 217
+  ClientWidth = 346
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
-  Font.Height = -11
+  Font.Height = -7
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = True
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  PixelsPerInch = 144
-  TextHeight = 13
+  PixelsPerInch = 96
+  TextHeight = 8
   object tmrHotSpot: TTimer
     Enabled = False
     Interval = 250
@@ -58,7 +58,7 @@ object frmMain: TfrmMain
   end
   object tmrDelay: TTimer
     Enabled = False
-    Interval = 300
+    Interval = 250
     OnTimer = tmrDelayTimer
     Left = 184
     Top = 24
