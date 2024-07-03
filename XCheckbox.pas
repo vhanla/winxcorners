@@ -8,6 +8,11 @@ Changelog:
 TODO:
   Add animation, and mouse drag
   Add touch support
+- 24-07-02
+  Add TCustomLabel as optional companion
+  (!weird that adding TLabel was detected by Kaspersky as not-a-virus:HEUR:AdWare.Win32.Generic)
+- 24-07-01
+  Fix click event rushing to mouseup for bad checkstate setting
 - 24-06-11
   Fix HighDpi support to draw radius correctly
   Add Windows 11 style
@@ -25,75 +30,125 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  StdCtrls, PNGimage, functions, GDIPApi, GDIPobj;
+  StdCtrls, PNGimage, functions, GDIPApi, GDIPobj, Types;
 
 type
+  TLabelPosition = (lpLeft, lpRight);
+
+  TXCheckBoxLabel = class(TCustomLabel)
+  published
+    property Caption;
+    property Font;
+  end;
+
   TXCheckbox = class(TGraphicControl)
   private
-    _caption : string;
-    _disabledColor: TColor;
-    _enabledColor: TColor;
-    _pressedColor: TColor;
-    _chkstate: Boolean;
-    _mousehover: Boolean;
-    _mousepressed: Boolean;
+    FCaption : string;
+    FDisabledColor: TColor;
+    FEnabledColor: TColor;
+    FPressedColor: TColor;
+    FChecked: Boolean;
+    FMouseHover: Boolean;
+    FMousePressed: Boolean;
 
-    MDown: TMouseEvent;
-    MUp: TMouseEvent;
-    MLeave: TNotifyEvent;
-    BtnClick: TNotifyEvent;
+    FOnMouseDown: TMouseEvent;
+    FOnMouseUp: TMouseEvent;
+    FOnMouseLeave: TNotifyEvent;
+    FOnClick: TNotifyEvent;
+
+    FLabel: TXCheckBoxLabel;
+    FLabeled: Boolean;
+    FLabelPosition: TLabelPosition;
+    FLabelSpacing: Integer;
+    FParentColor: TColor;
 
     procedure SetDisabledColor(Value: TColor);
     procedure SetEnabledColor(Value: TColor);
     procedure SetPressedColor(Value: TColor);
     procedure SetCaption(Value: string);
-    procedure SetCheckState(Value: Boolean);
+    procedure SetChecked(Value: Boolean);
+
+    procedure SetLabeled(Value: Boolean);
+    procedure SetLabelPosition(Value: TLabelPosition);
+    procedure SetLabelSpacing(Value: Integer);
+    procedure UpdateLabelPosition;
   protected
     procedure Paint; override;
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X,Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X,Y: Integer); override;
-    procedure MouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
-    procedure MouseEnter(var Message: TMessage); message CM_MOUSEENTER;
+    procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
+    procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
     procedure Click; override;
     procedure SetParent(Value: TWinControl); override;
+    procedure Resize; override;
+
+    procedure Notification(AComponent: TComponent; Operation: TOperation); override;
+    procedure RepaintLabel;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
   published
-    property Caption: string read _caption write SetCaption;
-    property Color: TColor read _enabledColor write SetEnabledColor;
-    property DisabledColor: TColor read _disabledColor write SetDisabledColor;
-    property PressedColor: TColor read _pressedColor write SetPressedColor;
-    property Checked: Boolean read _chkstate write SetCheckState;
+    property Caption: string read FCaption write SetCaption;
+    property Color: TColor read FEnabledColor write SetEnabledColor;
+    property DisabledColor: TColor read FDisabledColor write SetDisabledColor;
+    property PressedColor: TColor read FPressedColor write SetPressedColor;
+    property Checked: Boolean read FChecked write SetChecked;
 
-    property OnMouseDown: TMouseEvent read MDown write MDown;
-    property OnMouseUp: TMouseEvent read MUp write MUp;
-    property OnMouseLeave: TNotifyEvent read MLeave write MLeave;
-    property OnClick;//: TNotifyEvent read BtnClick write BtnClick;
+    property OnMouseDown: TMouseEvent read FOnMouseDown write FOnMouseDown;
+    property OnMouseUp: TMouseEvent read FOnMouseUp write FOnMouseUp;
+    property OnMouseLeave: TNotifyEvent read FOnMouseLeave write FOnMouseLeave;
+    property OnClick: TNotifyEvent read FOnClick write FOnClick;
     property ShowHint;
     property ParentShowHint;
     property OnMouseMove;
     property Font;
+    property Enabled;
+    property ParentColor default False;
 
+    property Labeled: Boolean read FLabeled write SetLabeled default False;
+    property LabelPosition: TLabelPosition read FLabelPosition write SetLabelPosition default lpLeft;
+    property LabelSpacing: Integer read FLabelSpacing write SetLabelSpacing default 3;
   end;
 
 procedure Register;
 
 implementation
 
+uses
+  Math;
+
 procedure Register;
 begin
   RegisterComponents('codigobit', [TXCheckbox]);
 end;
 
+{ Helper Functions }
+function DimColor(Color: TColor; DimLevel: Byte): TColor;
+var
+  R, G, B: Byte;
+begin
+  // Extract the red, green, and blue components from the TColor
+  R := GetRValue(Color);
+  G := GetGValue(Color);
+  B := GetBValue(Color);
+
+  // Reduce the brightness of each component by the DimLevel
+  R := Max(0, R - DimLevel);
+  G := Max(0, G - DimLevel);
+  B := Max(0, B - DimLevel);
+
+  // Combine the dimmed components back into a TColor
+  Result := RGB(R, G, B);
+end;
+
+
 { TXCheckbox }
 
 procedure TXCheckbox.Click;
 begin
-_chkstate := not _chkstate; // changing it before actually informing user that it was clicked
-  inherited;
+    if Assigned(FOnClick) then
+      FOnClick(Self);
 
-  Paint;
 end;
 
 constructor TXCheckbox.Create(AOwner: TComponent);
@@ -101,21 +156,27 @@ begin
   inherited Create(AOwner);
   Width := HighDpi(44);
   Height := HighDpi(20);
-  _enabledcolor := clOlive;
-  _disabledColor := clBlack;
-  _pressedColor := $666666;
-  _mousehover := False;
-  _mousepressed := False;
+  FEnabledColor := clOlive;
+  FDisabledColor := clBlack;
+  FPressedColor := $666666;
+  FMouseHover := False;
+  FMousePressed := False;
   Canvas.Brush.Color := clBlack;
   Font.Name := 'Segoe UI';
-  Font.Size := 12;
+  Font.Size := 10;
   Font.Style := [];
   ShowHint := False;
+  ParentColor := False;
 
+  FLabeled := False;
+  FLabelPosition := lpLeft;
+  FLabelSpacing := 3;
 end;
 
 destructor TXCheckbox.Destroy;
 begin
+  if Assigned(FLabel) then
+    FLabel.Free;
 
   inherited;
 end;
@@ -124,28 +185,59 @@ procedure TXCheckbox.MouseDown(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
 begin
   inherited;
-  _mousepressed := True;
-  Paint;
+  FMousePressed := True;
+  if Assigned(FOnMouseDown) then
+    FOnMouseDown(Self, Button, Shift, X, Y);
+  Invalidate;
 end;
 
-procedure TXCheckbox.MouseEnter(var Message: TMessage);
+procedure TXCheckbox.CMMouseEnter(var Message: TMessage);
 begin
-  _mousehover := True;
-  Paint;
+  inherited;
+  FMouseHover := True;
+  Invalidate;
 end;
 
-procedure TXCheckbox.MouseLeave(var Message: TMessage);
+procedure TXCheckbox.CMMouseLeave(var Message: TMessage);
 begin
-  _mousehover := False;
-  Paint;
+  inherited;
+  FMouseHover := False;
+  FMousePressed := False;
+  if Assigned(FOnMouseLeave) then
+    FOnMouseLeave(Self);
+  Invalidate;
 end;
 
 procedure TXCheckbox.MouseUp(Button: TMouseButton; Shift: TShiftState; X,
   Y: Integer);
+var
+  MousePos: TPoint;
 begin
   inherited;
-  _mousepressed := False;
-  Paint;
+  FMousePressed := False;
+
+  if (PtInRect(ClientRect, Point(X, Y))) and (Button = mbLeft) then
+  begin
+      SetChecked(not FChecked);
+      if Assigned(FLabel) then
+        if Checked then
+          FLabel.Font.Color := Font.Color
+        else
+          FLabel.Font.Color := FDisabledColor;
+      Click;
+  end;
+
+  if Assigned(FOnMouseUp) then
+    FOnMouseUp(Self, Button, Shift, X, Y);
+  Invalidate;
+end;
+
+procedure TXCheckbox.Notification(AComponent: TComponent;
+  Operation: TOperation);
+begin
+  inherited;
+  if (Operation = opRemove) and (AComponent = FLabel) then
+    FLabel := nil;
 end;
 
 procedure TXCheckbox.Paint;
@@ -159,9 +251,6 @@ begin
              (DWORD(GetRValue(tmpRGB)) shl   RedShift) or
              (DWORD(A) shl AlphaShift));
 end;
-{const
-  MergeFunc: TBlendFunction = (BlendOp: AC_SRC_OVER; BlendFlags: 0;
-    SourceConstantAlpha: $FF; AlphaFormat: AC_SRC_ALPHA);}
 
 var
   bmp: TBitmap;
@@ -170,7 +259,6 @@ var
   pen: TGPPen;
   brush: TGPSolidBrush;
   l,t,w,h,d,s,radio: integer;
-
 begin
   inherited;
 
@@ -187,15 +275,22 @@ begin
     if TaskbarAccented then
       bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha(BlendColors(clBlack,GetAccentColor,50),200)
     else
+    begin
       if SystemUsesLightTheme then
         bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($dddddd,200)
       else
       begin
-        if isWindows11 then
-          bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha(BlendColors($2d2d2d, clBlack,25), 200)
+        if ParentColor then
+            bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha(FParentColor,255)
         else
-          bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($222222,200);
+        begin
+          if isWindows11 then
+            bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha(BlendColors($2d2d2d, clBlack,25), 200)
+          else
+            bmp.Canvas.Brush.Handle := CreateSolidBrushWithAlpha($222222,200);
+        end;
       end;
+    end;
     bmp.Canvas.FillRect(Rect(0,0,Width,Height));
 
     graph := TGPGraphics.Create(bmp.Canvas.Handle);
@@ -212,35 +307,40 @@ begin
         path.CloseFigure;
 
         // let's draw
-        brush := TGPSolidBrush.Create(MakeGDIPColor(_disabledColor));//any color for now
+        brush := TGPSolidBrush.Create(MakeGDIPColor(FDisabledColor));//any color for now
         try
-          pen := TGPPen.Create(MakeGDIPColor(_disabledColor),2); // any color  for now
+          if not Enabled then
+            pen := TGPPen.Create(MakeGDIPColor(DimColor(FDisabledColor, 30)))
+          else
+            pen := TGPPen.Create(MakeGDIPColor(FDisabledColor),2); // any color  for now
           try
-            if _chkstate then
+            if FChecked then
             begin
-              if _mousehover then
-                brush.SetColor(MakeGDIPColor(BlendColors(clWhite, _enabledColor,20)))
+              if FMouseHover then
+                brush.SetColor(MakeGDIPColor(BlendColors(clWhite, FEnabledColor,20)))
               else
-                brush.SetColor(MakeGDIPColor(_enabledColor));
-              if _mousepressed then
-                brush.SetColor(MakeGDIPColor(_pressedColor));
+                brush.SetColor(MakeGDIPColor(FEnabledColor));
+              if FMousePressed then
+                brush.SetColor(MakeGDIPColor(FPressedColor));
               graph.FillPath(brush, path );
               brush.SetColor(MakeGDIPColor(clWhite));
 
-              //graph.FillEllipse(brush,MakeRect(Width-5-9-1,5,9,9));
               graph.FillEllipse(brush,MakeRect(Width-5-(h-10)-1,5,h-10,h-10));//white circle
             end
             else
             begin
-              if _mousepressed then
+              if FMousePressed then
               begin
-                brush.SetColor(MakeGDIPColor(_pressedColor));
+                brush.SetColor(MakeGDIPColor(FPressedColor));
                 graph.FillPath(brush, path );
-                brush.SetColor(MakeGDIPColor(_disabledColor));
+                brush.SetColor(MakeGDIPColor(FDisabledColor));
               end
               else
               begin
-              //  graph.DrawPath(pen,path); // this has glitches
+                if not Enabled then
+                  brush.SetColor(MakeGDIPColor(DimColor(FDisabledColor, 30)));
+
+
                 graph.DrawArc(pen,l+1,t+1,d-2,d-2,180,90);
                 graph.DrawLine(pen,l+s,t+1,l+w-s,t+1);
                 graph.DrawArc(pen,l+w-d+1,t+1,d-2,d-2,270,90);
@@ -251,7 +351,6 @@ begin
                 graph.DrawLine(pen,l+1,t+s, l+1, t+h-s);
               end;
 
-              //graph.FillEllipse(brush,MakeRect(5,5,9,9));
               graph.FillEllipse(brush,MakeRect(5,5,h-10,h-10));
             end;
           finally
@@ -263,72 +362,192 @@ begin
       finally
         path.Free;
       end;
+      //
+      if FCaption <> '' then
+      begin
+      end;
+
     finally
       graph.Free;
     end;
     canvas.Draw(0,0,bmp);
-    //Windows.AlphaBlend(Canvas.Handle,0,0,Width, Height,bmp.Canvas.Handle, 0,0,Width,Height,MergeFunc);
   finally
     bmp.Free;
   end;
-{  Canvas.Pen.Style := psClear;
-  if _chkstate then
-  begin
-    Canvas.Brush.Handle := CreateSolidBrushWithAlpha(_enabledColor);
-    Canvas.RoundRect(0,0,Width,Height,15,15);
-    Canvas.Brush.Handle := CreateSolidBrushWithAlpha(clWhite);
-    Canvas.Ellipse(Width - 5,5,Width - 15,15);
 
-  end
-  else
+  if not (FLabeled and Assigned(FLabel)) then
   begin
-    Canvas.Brush.Handle := CreateSolidBrushWithAlpha(_disabledColor);
-    Canvas.RoundRect(0,0,Width,Height,15,15);
-    if TaskbarAccented then
-      Canvas.Brush.Handle := CreateSolidBrushWithAlpha(BlendColors(_enabledColor,clBlack,50),200)
+  end;
+end;
+
+procedure TXCheckbox.RepaintLabel;
+begin
+  if Assigned(FLabel) then
+  begin
+    if Enabled then
+      FLabel.Font.Color := Font.Color
     else
-      Canvas.Brush.Handle := CreateSolidBrushWithAlpha($222222,200);
-    Canvas.RoundRect(2,2,Width-2,Height-2,15,15);
-    Canvas.Brush.Handle := CreateSolidBrushWithAlpha(_disabledColor);
-    Canvas.Ellipse(5,5,15,15);
-  end;}
+      FLabel.Font.Color := FDisabledColor;
+    if not Checked then
+      FLabel.Font.Color := FDisabledColor;
+
+    FLabel.Repaint;
+
+  end;
+end;
+
+procedure TXCheckbox.Resize;
+begin
+  inherited;
+  Invalidate;
 end;
 
 procedure TXCheckbox.SetCaption(Value: string);
 begin
-  _caption := Value;
-  Paint;
+  if FCaption <> Value then
+  begin
+    FCaption := Value;
+    if Assigned(FLabel) then
+      FLabel.Caption := Value;
+
+    Invalidate;
+    RepaintLabel;
+  end;
 end;
 
-procedure TXCheckbox.SetCheckState(Value: Boolean);
+procedure TXCheckbox.SetChecked(Value: Boolean);
 begin
-  _chkstate := Value;
-  Paint;
+  if FChecked <> Value then
+  begin
+    FChecked := Value;
+    Invalidate;
+    RepaintLabel;
+  end;
 end;
 
 procedure TXCheckbox.SetDisabledColor(Value: TColor);
 begin
-  _disabledColor := Value;
-  Paint;
+  if FDisabledColor <> Value then
+  begin
+    FDisabledColor := Value;
+    Invalidate;
+  end;
 end;
 
 procedure TXCheckbox.SetEnabledColor(Value: TColor);
 begin
-  _enabledColor := Value;
-  Paint;
+  if FEnabledColor <> Value then
+  begin
+    FEnabledColor := Value;
+    Invalidate;
+    RepaintLabel;
+  end;
+end;
+
+procedure TXCheckbox.SetLabeled(Value: Boolean);
+begin
+  if FLabeled <> Value then
+  begin
+    FLabeled := Value;
+    if FLabeled then
+    begin
+      if not Assigned(FLabel) then
+      begin
+        FLabel := TXCheckBoxLabel.Create(Self);
+        FLabel.Font := Font;
+        if Checked then
+          FLabel.Font.Color := Font.Color
+        else
+          FLabel.Font.Color := FDisabledColor;
+        FLabel.Parent := Parent;
+        FLabel.FreeNotification(Self);
+      end;
+      FLabel.Caption := FCaption;
+      UpdateLabelPosition;
+    end
+    else if Assigned(FLabel) then
+    begin
+      FLabel.Free;
+      FLabel := nil;
+    end;
+  end;
+end;
+
+procedure TXCheckbox.SetLabelPosition(Value: TLabelPosition);
+begin
+  if FLabelPosition <> Value then
+  begin
+    FLabelPosition := Value;
+    UpdateLabelPosition;
+  end;
+
+end;
+
+procedure TXCheckbox.SetLabelSpacing(Value: Integer);
+begin
+  if FLabelSpacing <> Value then
+  begin
+    FLabelSpacing := Value;
+    UpdateLabelPosition;
+  end;
+
 end;
 
 procedure TXCheckbox.SetParent(Value: TWinControl);
+var
+  ParentControl: TWinControl;
 begin
   inherited;
-  if Value <> nil then _caption := Name;
+  if (Value <> nil) and (FCaption = '') then
+    FCaption := Name;
+  if Assigned(FLabel) then
+    FLabel.Parent := Value;
+  RepaintLabel;
 
+  // Let's get the parent color
+  ParentControl := Value;
+  while Assigned(ParentControl) do
+  begin
+    if ParentControl is TCustomForm then
+    begin
+      FParentColor := TCustomForm(ParentControl).Color;
+      break;
+    end;
+    ParentControl := ParentControl.Parent;
+  end;
 end;
 
 procedure TXCheckbox.SetPressedColor(Value: TColor);
 begin
-  _pressedColor := Value;
-  Paint;
+  if FPressedColor <> Value then
+  begin
+    FPressedColor := Value;
+    Invalidate;
+    RepaintLabel;
+  end;
 end;
 
+
+procedure TXCheckbox.UpdateLabelPosition;
+begin
+  if Assigned(FLabel) then
+  begin
+    case FLabelPosition of
+      lpLeft:
+      begin
+        FLabel.Left := Left - FLabel.Width - FLabelSpacing;
+        FLabel.Top := Top + (Height - FLabel.Height) div 2;
+      end;
+      lpRight:
+      begin
+        FLabel.Left := Left + Width + FLabelSpacing;
+        FLabel.Top := Top + (Height - FLabel.Height) div 2;
+      end;
+    end;
+    RepaintLabel;
+  end;
+end;
+
+
 end.
+
