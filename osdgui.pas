@@ -185,6 +185,8 @@ end;
  }
 
 procedure TfrmOSD.FormCreate(Sender: TObject);
+const
+  DWMWA_EXCLUDED_FROM_PEEK          = 12; // [set] LivePreview exclusion information
 var
   renderPolicy: DWMWINDOWATTRIBUTE; //integer;//DWMWINDOWATTRIBUTE;
 begin

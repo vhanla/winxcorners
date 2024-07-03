@@ -2,18 +2,18 @@ object frmOSD: TfrmOSD
   Left = 0
   Top = 0
   Caption = 'frmOSD'
-  ClientHeight = 192
-  ClientWidth = 239
+  ClientHeight = 119
+  ClientWidth = 148
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
-  Font.Height = -17
+  Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
   OnActivate = FormActivate
   OnCreate = FormCreate
   OnShow = FormShow
-  PixelsPerInch = 144
-  TextHeight = 21
+  PixelsPerInch = 96
+  TextHeight = 13
 end
