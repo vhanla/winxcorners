@@ -79,6 +79,7 @@ type
     procedure Timer2Timer(Sender: TObject);
     procedure Timer3Timer(Sender: TObject);
     procedure tmFaderTimer(Sender: TObject);
+    procedure FormClick(Sender: TObject);
   private
     { Private declarations }
     CornerOption : TXCombobox;
@@ -132,6 +133,11 @@ begin
   end
   else
     Close;
+end;
+
+procedure TfrmTrayPopup.FormClick(Sender: TObject);
+begin
+  XPopupMenu.Hide;
 end;
 
 procedure TfrmTrayPopup.FormClose(Sender: TObject; var Action: TCloseAction);

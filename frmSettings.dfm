@@ -2,41 +2,52 @@ object frmTrayPopup: TfrmTrayPopup
   Left = 0
   Top = 0
   Caption = 'frmTrayPopup'
-  ClientHeight = 354
-  ClientWidth = 616
+  ClientHeight = 232
+  ClientWidth = 404
   Color = 16744448
   Font.Charset = ANSI_CHARSET
   Font.Color = clWindowText
-  Font.Height = -24
+  Font.Height = -16
   Font.Name = 'Segoe UI'
   Font.Style = []
   FormStyle = fsStayOnTop
   OldCreateOrder = False
+  OnClick = FormClick
   OnClose = FormClose
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnPaint = FormPaint
   OnShow = FormShow
-  PixelsPerInch = 144
-  TextHeight = 32
+  PixelsPerInch = 96
+  TextHeight = 21
   object imgScreenShape: TImage
-    Left = 218
-    Top = 69
-    Width = 146
-    Height = 146
+    Left = 143
+    Top = 45
+    Width = 96
+    Height = 96
+    Margins.Left = 2
+    Margins.Top = 2
+    Margins.Right = 2
+    Margins.Bottom = 2
+    OnClick = FormClick
   end
   object Label1: TLabel
-    Left = 256
-    Top = 69
-    Width = 36
-    Height = 133
+    Left = 168
+    Top = 45
+    Width = 23
+    Height = 87
+    Margins.Left = 2
+    Margins.Top = 2
+    Margins.Right = 2
+    Margins.Bottom = 2
     Caption = '1'
     Font.Charset = ANSI_CHARSET
     Font.Color = clWhite
-    Font.Height = -100
+    Font.Height = -65
     Font.Name = 'Segoe UI Light'
     Font.Style = []
     ParentFont = False
+    OnClick = FormClick
   end
   object Timer1: TTimer
     Interval = 3
