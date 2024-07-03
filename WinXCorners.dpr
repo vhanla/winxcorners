@@ -9,7 +9,10 @@ uses
   XCombobox in 'XCombobox.pas',
   osdgui in 'osdgui.pas' {frmOSD},
   frmAdvanced in 'frmAdvanced.pas' {frmAdvSettings},
-  functions in 'functions.pas';
+  functions in 'functions.pas',
+  hotkeyhelper in 'hotkeyhelper.pas',
+  settingsHelper in 'settingsHelper.pas',
+  conditionsHelper in 'conditionsHelper.pas';
 
 {$R *.res}
 {$R PNGIMAGE_1.res}
@@ -17,9 +20,9 @@ uses
 {$R ICON_1.res}
 {$R ICON_2.res}
 {$R ICON_3.res}
-{$ifdef ver360}
+//{$ifdef ver360}
 {$R Manifest1.res}
-{$endif}
+//{$endif}
 
 var
   AppHandle: HWND;
