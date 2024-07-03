@@ -5,63 +5,82 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics,
   Controls, Forms, Dialogs, StdCtrls, Spin,
-  ExtCtrls, ShellApi, IniFiles, ComCtrls;
+  ExtCtrls, ShellApi, IniFiles, ComCtrls, Buttons, Menus, rkSmartTabs, XCheckbox,
+  Tabs, attabs;
 
 const
   VERSION = '1.3';
 
 type
+
+{  TBitBtn = class(Buttons.TBitBtn)
+  private
+    procedure CNDrawItem(var Msg: TWMDrawItem); message CN_DRAWITEM;
+    procedure CNFocusChanged(var Msg: TMessage); message CM_FOCUSCHANGED;
+  protected
+    procedure DrawButton(const DrawItemStruct: TDrawItemStruct); virtual;
+  end;}
+
   TfrmAdvSettings = class(TForm)
-    GroupBox1: TGroupBox;
-    chkDelayGlobal: TCheckBox;
-    valDelayGlobal: TSpinEdit;
-    chkDelayTopLeft: TCheckBox;
-    valDelayTopLeft: TSpinEdit;
-    chkDelayTopRight: TCheckBox;
-    valDelayTopRight: TSpinEdit;
-    chkDelayBotLeft: TCheckBox;
-    valDelayBotLeft: TSpinEdit;
-    chkDelayBotRight: TCheckBox;
-    valDelayBotRight: TSpinEdit;
     Label2: TLabel;
-    GroupBox2: TGroupBox;
-    Button1: TButton;
-    Button2: TButton;
     Label3: TLabel;
-    edCommand: TEdit;
-    chkCustom: TCheckBox;
     Label4: TLabel;
-    chkHidden: TCheckBox;
-    edParams: TEdit;
     Label1: TLabel;
     Label5: TLabel;
-    chkShowCount: TCheckBox;
-    chkFullScreen: TCheckBox;
-    PageControl1: TPageControl;
-    TabSheet1: TTabSheet;
-    TabSheet2: TTabSheet;
-    TabSheet3: TTabSheet;
-    TabSheet4: TTabSheet;
+    edCommand: TButtonedEdit;
+    edParams: TButtonedEdit;
+    cbValDelayGlobal: TComboBox;
+    btnCancel: TButton;
+    btnOK: TButton;
+    chkDelayGlobal: TXCheckbox;
+    ATTabs1: TATTabs;
+    chkShowCount: TXCheckbox;
+    chkFullScreen: TXCheckbox;
+    chkDelayTopLeft: TXCheckbox;
+    chkDelayBotLeft: TXCheckbox;
+    chkDelayTopRight: TXCheckbox;
+    chkDelayBotRight: TXCheckbox;
+    chkCustom: TXCheckbox;
+    chkHidden: TXCheckbox;
+    Panel1: TPanel;
+    Panel2: TPanel;
+    cbValDelayTopLeft: TComboBox;
+    cbValDelayBotLeft: TComboBox;
+    cbValDelayTopRight: TComboBox;
+    cbValDelayBotRight: TComboBox;
     procedure FormCreate(Sender: TObject);
-    procedure Button2Click(Sender: TObject);
     procedure Label4Click(Sender: TObject);
     procedure chkDelayGlobalClick(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
     procedure Label5Click(Sender: TObject);
     procedure chkFullScreenClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure PageControl1Change(Sender: TObject);
     procedure edCommandChange(Sender: TObject);
     procedure edParamsChange(Sender: TObject);
     procedure chkHiddenClick(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure rkSmartTabs1TabChange(Sender: TObject);
+    procedure btnCancelClick(Sender: TObject);
+    procedure btnOKClick(Sender: TObject);
+    procedure ATTabs1TabClick(Sender: TObject);
+    procedure chkDelayTopLeftClick(Sender: TObject);
+    procedure chkDelayTopRightClick(Sender: TObject);
+    procedure chkDelayBotLeftClick(Sender: TObject);
+    procedure chkDelayBotRightClick(Sender: TObject);
+
+  protected
+    FBitmap: TBitmap;
+    FBrush: HBRUSH;
+    procedure WndProc(var Msg: TMessage); override;
   private
     { Private declarations }
+    FCurTab: Integer;
     procedure Temp2Cmd; // dump changes to official
     procedure Cmd2Temp; // restore from temp to official cmd
   public
     { Public declarations }
     procedure SaveAdvancedIni;
     procedure ReadAdvancedIni;
+    procedure ToggleEachCornersDelay(Enable: Boolean);
   end;
 
 var
@@ -78,47 +97,65 @@ implementation
 
 {$R *.dfm}
 
-uses frmSettings, main, functions;
+uses frmSettings, main, functions, conditionshelper;
 
-procedure TfrmAdvSettings.Button1Click(Sender: TObject);
+  function SetWindowTheme(hwnd: HWND; pszSubAppName: LPCWSTR; pszSubIdList: LPCWSTR): HRESULT; stdcall;
+    external 'uxtheme.dll';
+
+procedure TfrmAdvSettings.ATTabs1TabClick(Sender: TObject);
+begin
+  FCurTab := ATTabs1.TabIndex;
+//  caption := inttostr(curTab);
+  edCommand.Text := tmpcmdcli[FCurTab];
+  edParams.Text := tmpcmdarg[FCurTab];
+  chkHidden.Checked := tmpcmdhid[FCurTab];
+end;
+
+procedure TfrmAdvSettings.btnCancelClick(Sender: TObject);
+begin
+  ReadAdvancedIni;
+  close
+end;
+
+procedure TfrmAdvSettings.btnOKClick(Sender: TObject);
 begin
   SaveAdvancedIni;
   Close
 end;
 
-procedure TfrmAdvSettings.Button2Click(Sender: TObject);
+procedure TfrmAdvSettings.chkDelayBotLeftClick(Sender: TObject);
 begin
-  ReadAdvancedIni;
-  close
+  cbValDelayBotLeft.Enabled := chkDelayBotLeft.Checked;
+end;
+
+procedure TfrmAdvSettings.chkDelayBotRightClick(Sender: TObject);
+begin
+  cbValDelayBotRight.Enabled := chkDelayBotRight.Checked;
 end;
 
 procedure TfrmAdvSettings.chkDelayGlobalClick(Sender: TObject);
 begin
   if chkDelayGlobal.Checked then
   begin
-    valDelayGlobal.Enabled := True;
-    chkDelayTopLeft.Enabled := False;
-    valDelayTopLeft.Enabled := False;
-    chkDelayTopRight.Enabled := False;
-    valDelayTopRight.Enabled := False;
-    chkDelayBotLeft.Enabled := False;
-    valDelayBotLeft.Enabled := False;
-    chkDelayBotRight.Enabled := False;
-    valDelayBotRight.Enabled := False;
+    cbValDelayGlobal.Enabled := True;
+    ToggleEachCornersDelay(False);
   end
   else
   begin
-    valDelayGlobal.Enabled := False;
-    chkDelayTopLeft.Enabled := True;
-    valDelayTopLeft.Enabled := True;
-    chkDelayTopRight.Enabled := True;
-    valDelayTopRight.Enabled := True;
-    chkDelayBotLeft.Enabled := True;
-    valDelayBotLeft.Enabled := True;
-    chkDelayBotRight.Enabled := True;
-    valDelayBotRight.Enabled := True;
+    cbValDelayGlobal.Enabled := False;
+    ToggleEachCornersDelay(True);
   end;
 
+end;
+
+procedure TfrmAdvSettings.chkDelayTopLeftClick(Sender: TObject);
+begin
+  cbValDelayTopLeft.Enabled := chkDelayTopLeft.Checked;
+end;
+
+procedure TfrmAdvSettings.chkDelayTopRightClick(Sender: TObject);
+begin
+  cbValDelayTopRight.Enabled := chkDelayTopRight.Checked;
 end;
 
 procedure TfrmAdvSettings.chkFullScreenClick(Sender: TObject);
@@ -129,7 +166,7 @@ end;
 procedure TfrmAdvSettings.chkHiddenClick(Sender: TObject);
 begin
   if Sender is TCheckBox then
-    tmpcmdhid[PageControl1.ActivePageIndex] := chkHidden.Checked;
+    tmpcmdhid[FCurTab] := chkHidden.Checked;
 end;
 
 procedure TfrmAdvSettings.Cmd2Temp;
@@ -144,20 +181,33 @@ begin
   end;
 end;
 
+
 procedure TfrmAdvSettings.edCommandChange(Sender: TObject);
 begin
   if Sender is TEdit then
-    tmpcmdcli[PageControl1.ActivePageIndex] := edCommand.Text;
+    tmpcmdcli[FCurTab] := edCommand.Text;
 end;
 
 procedure TfrmAdvSettings.edParamsChange(Sender: TObject);
 begin
   if Sender is TEdit then
-    tmpcmdarg[PageControl1.ActivePageIndex] := edParams.Text;
+    tmpcmdarg[FCurTab] := edParams.Text;
 end;
+
 
 procedure TfrmAdvSettings.FormCreate(Sender: TObject);
 begin
+
+  FCurTab := 0;
+  FBitmap := TBitmap.Create;
+  FBitmap.SetSize(64,64);
+  FBitmap.PixelFormat := pf24bit;
+  FBitmap.Canvas.Brush.Style := bsSolid;
+  FBitmap.Canvas.Brush.Color := $2d2d2d;
+  FBitmap.Canvas.FillRect(ClientRect);
+//  FBitmap.LoadFromFile('T:\Program Files (x86)\Caphyon\Advanced Installer 21.0.1\themes\surface\resources\variations\metropurple\background.bmp');
+  FBrush := 0;
+  FBrush := CreatePatternBrush(FBitmap.Handle);
 //  if not SystemUsesLightTheme then
 //  begin
 //    AllowDarkModeForWindow(Handle, True);
@@ -170,11 +220,54 @@ begin
   BorderStyle := bsSingle;
   BorderIcons := [biSystemMenu, biMinimize];
   Position := poScreenCenter;
-  valDelayGlobal.Enabled := False;
+  cbValDelayGlobal.Enabled := False;
   ReadAdvancedIni;
     UseImmersiveDarkMode(Handle, True);
 //  EnableNCShadow(Handle);
+//  setwindowtheme(Edit1.Handle, 'CFD', nil);
+//  AllowDarkModeForWindow(Edit1.Handle, True);
+//  sendmessagew(Edit1.Handle, WM_THEMECHANGED, 0, 0);
 
+  setwindowtheme(cbValDelayGlobal.Handle, 'CFD', nil);
+  AllowDarkModeForWindow(cbValDelayGlobal.Handle, True);
+  sendmessagew(cbValDelayGlobal.Handle, WM_THEMECHANGED, 0, 0);
+
+  setwindowtheme(cbValDelayTopLeft.Handle, 'CFD', nil);
+  AllowDarkModeForWindow(cbValDelayTopLeft.Handle, True);
+  sendmessagew(cbValDelayTopLeft.Handle, WM_THEMECHANGED, 0, 0);
+
+  setwindowtheme(cbValDelayTopRight.Handle, 'CFD', nil);
+  AllowDarkModeForWindow(cbValDelayTopRight.Handle, True);
+  sendmessagew(cbValDelayTopRight.Handle, WM_THEMECHANGED, 0, 0);
+
+  setwindowtheme(cbValDelayBotLeft.Handle, 'CFD', nil);
+  AllowDarkModeForWindow(cbValDelayBotLeft.Handle, True);
+  sendmessagew(cbValDelayBotLeft.Handle, WM_THEMECHANGED, 0, 0);
+
+  setwindowtheme(cbValDelayBotRight.Handle, 'CFD', nil);
+  AllowDarkModeForWindow(cbValDelayBotRight.Handle, True);
+  sendmessagew(cbValDelayBotRight.Handle, WM_THEMECHANGED, 0, 0);
+
+
+//  setwindowtheme(ComboBox2.Handle, 'CFD', nil);
+//  AllowDarkModeForWindow(ComboBox2.Handle, True);
+//  sendmessagew(ComboBox2.Handle, WM_THEMECHANGED, 0, 0);
+
+
+  setwindowtheme(btnOK.Handle, 'Explorer', nil);
+  AllowDarkModeForWindow(btnOK.Handle, True);
+  sendmessagew(btnOK.Handle, WM_THEMECHANGED, 0, 0);
+
+  setwindowtheme(btnCancel.Handle, 'Explorer', nil);
+  AllowDarkModeForWindow(btnCancel.Handle, True);
+  sendmessagew(btnCancel.Handle, WM_THEMECHANGED, 0, 0);
+
+
+end;
+
+procedure TfrmAdvSettings.FormDestroy(Sender: TObject);
+begin
+  FBitmap.Free;
 end;
 
 procedure TfrmAdvSettings.FormShow(Sender: TObject);
@@ -211,6 +304,7 @@ var
   rversion: String;
 begin
   ShellExecute(0, 'OPEN', PChar('https://github.com/vhanla/winxcorners/releases'), nil, nil, SW_SHOWNORMAL);
+//  ShowMessage(IntToStr(Windows.GetWindowTextLength(GetForegroundWindow)));
 {  RESTClient1.BaseURL := 'https://updates.codigobit.net/app/winxcorners';
   RESTRequest1.Execute;
   try
@@ -230,14 +324,6 @@ begin
   end;}
 end;
 
-procedure TfrmAdvSettings.PageControl1Change(Sender: TObject);
-begin
- Windows.SetParent(GroupBox2.Handle, PageControl1.ActivePage.Handle);
- edCommand.Text := tmpcmdcli[PageControl1.ActivePageIndex];
- edParams.Text := tmpcmdarg[PageControl1.ActivePageIndex];
- chkHidden.Checked := tmpcmdhid[PageControl1.ActivePageIndex];
-end;
-
 procedure TfrmAdvSettings.ReadAdvancedIni;
 var
   ini: TIniFile;
@@ -245,16 +331,18 @@ begin
   ini := TIniFile.Create(ExtractFilePath(ParamStr(0))+'settings.ini');
   try
     chkDelayGlobal.Checked := ini.ReadBool('Advanced','GlobalDelay',False);
-    valDelayGlobal.Text := ini.ReadString('Advanced','GlobalDelayVal', '3');
+    cbValDelayGlobal.ItemIndex := ini.ReadInteger('Advanced','GlobalDelayVal', 3);
 
     chkDelayTopLeft.Checked := ini.ReadBool('Advanced','TopLeftDelay', False);
-    valDelayTopLeft.Text := ini.ReadString('Advanced','TopLeftVal', '3');
+    cbValDelayTopLeft.ItemIndex := ini.ReadInteger('Advanced','TopLeftVal', 3);
     chkDelayTopRight.Checked := ini.ReadBool('Advanced','TopRightDelay', False);
-    valDelayTopRight.Text := ini.ReadString('Advanced','TopRightDelayVal', '3');
+    cbValDelayTopRight.ItemIndex := ini.ReadInteger('Advanced','TopRightDelayVal', 3);
     chkDelayBotLeft.Checked := ini.ReadBool('Advanced','BotLeftDelay', False);
-    valDelayBotLeft.Text := ini.ReadString('Advanced','BotLeftDelayVal', '3');
+    cbValDelayBotLeft.ItemIndex := ini.ReadInteger('Advanced','BotLeftDelayVal', 3);
     chkDelayBotRight.Checked := ini.ReadBool('Advanced','BotRightDelay', False);
-    valDelayBotRight.Text := ini.ReadString('Advanced','BotRightDelayVal', '3');
+    cbValDelayBotRight.ItemIndex := ini.ReadInteger('Advanced','BotRightDelayVal', 3);
+
+    ToggleEachCornersDelay(not chkDelayGlobal.Checked);
 
     chkShowCount.Checked := ini.ReadBool('Advanced', 'ShowCountDown', False);
 
@@ -284,15 +372,27 @@ begin
     // clone values
     cmd2temp;
 
-    edCommand.Text := cmdcli[PageControl1.ActivePageIndex];
-    edParams.Text := cmdarg[PageControl1.ActivePageIndex];
-    chkHidden.Checked := cmdhid[PageControl1.ActivePageIndex];
+    edCommand.Text := cmdcli[FCurTab];
+    edParams.Text := cmdarg[FCurTab];
+    chkHidden.Checked := cmdhid[FCurTab];
 
     chkFullScreen.Checked := ini.ReadBool('Advanced', 'IgnoreFullScreen', True);
     frmMain.tmFullScreen.Checked := chkFullScreen.Checked;
   finally
     ini.Free;
   end;
+end;
+
+procedure TfrmAdvSettings.rkSmartTabs1TabChange(Sender: TObject);
+var
+  curTab: Integer;
+begin
+  //
+//  curTab := rkSmartTabs1.ActiveTab;
+  caption := inttostr(curTab);
+  edCommand.Text := tmpcmdcli[curTab];
+  edParams.Text := tmpcmdarg[curTab];
+  chkHidden.Checked := tmpcmdhid[curTab];
 end;
 
 procedure TfrmAdvSettings.SaveAdvancedIni;
@@ -302,16 +402,16 @@ begin
   ini := TIniFile.Create(ExtractFilePath(ParamStr(0))+'settings.ini');
   try
     ini.WriteBool('Advanced','GlobalDelay',chkDelayGlobal.Checked);
-    ini.WriteInteger('Advanced','GlobalDelayVal', StrToInt(valDelayGlobal.Text));
+    ini.WriteInteger('Advanced','GlobalDelayVal', cbValDelayGlobal.ItemIndex);
 
     ini.WriteBool('Advanced','TopLeftDelay',chkDelayTopLeft.Checked);
-    ini.WriteInteger('Advanced','TopLeftVal', StrToInt(valDelayTopLeft.Text));
+    ini.WriteInteger('Advanced','TopLeftVal', cbValDelayTopLeft.ItemIndex);
     ini.WriteBool('Advanced','TopRightDelay',chkDelayTopRight.Checked);
-    ini.WriteInteger('Advanced','TopRightDelayVal', StrToInt(valDelayTopRight.Text));
+    ini.WriteInteger('Advanced','TopRightDelayVal', cbValDelayTopRight.ItemIndex);
     ini.WriteBool('Advanced','BotLeftDelay',chkDelayBotLeft.Checked);
-    ini.WriteInteger('Advanced','BotLeftDelayVal', StrToInt(valDelayBotLeft.Text));
+    ini.WriteInteger('Advanced','BotLeftDelayVal', cbValDelayBotLeft.ItemIndex);
     ini.WriteBool('Advanced','BotRightDelay',chkDelayBotRight.Checked);
-    ini.WriteInteger('Advanced','BotRightDelayVal', StrToInt(valDelayBotRight.Text));
+    ini.WriteInteger('Advanced','BotRightDelayVal', cbValDelayBotRight.ItemIndex);
 
     ini.WriteBool('Advanced', 'ShowCountDown', chkShowCount.Checked);
 
@@ -348,6 +448,8 @@ begin
   end;
 end;
 
+
+
 procedure TfrmAdvSettings.Temp2Cmd;
 var
   I : Integer;
@@ -359,6 +461,101 @@ begin
     cmdhid[I] := tmpcmdhid[I];
   end;
 end;
+
+procedure TfrmAdvSettings.ToggleEachCornersDelay(Enable: Boolean);
+begin
+  if Enable then
+  begin
+    chkDelayTopLeft.Enabled := True;
+    cbValDelayTopLeft.Enabled := chkDelayTopLeft.Checked;
+
+    chkDelayTopRight.Enabled := True;
+    cbValDelayTopRight.Enabled := chkDelayTopRight.Checked;
+
+    chkDelayBotLeft.Enabled := True;
+    cbValDelayBotLeft.Enabled := chkDelayBotLeft.Checked;
+
+    chkDelayBotRight.Enabled := True;
+    cbValDelayBotRight.Enabled := chkDelayBotRight.Checked;
+  end
+  else
+  begin
+    chkDelayTopLeft.Enabled := False;
+    chkDelayTopLeft.Checked := False;
+    cbValDelayTopLeft.Enabled := False;
+
+    chkDelayTopRight.Enabled := False;
+    chkDelayTopRight.Checked := False;
+    cbValDelayTopRight.Enabled := False;
+
+    chkDelayBotLeft.Enabled := False;
+    chkDelayBotLeft.Checked := False;
+    cbValDelayBotLeft.Enabled := False;
+
+    chkDelayBotRight.Enabled := False;
+    chkDelayBotRight.Checked := False;
+    cbValDelayBotRight.Enabled := False;
+  end;
+
+end;
+
+procedure TfrmAdvSettings.WndProc(var Msg: TMessage);
+begin
+  inherited;
+
+  case Msg.Msg of
+    WM_CTLCOLOREDIT, WM_CTLCOLORSTATIC:
+    begin
+      if ((Msg.LParam = edCommand.Handle) or (Msg.LParam = edParams.Handle) ) and (FBrush <> 0) then
+      begin
+        SetBkMode(Msg.WParam, TRANSPARENT);
+        Msg.Result := FBrush;
+      end;
+    end;
+  end;
+end;
+
+{procedure TfrmAdvSettings.XCheckbox1Click(Sender: TObject);
+begin
+
+end;
+
+ TBitBtn }
+
+{procedure TBitBtn.CNDrawItem(var Msg: TWMDrawItem);
+begin
+  DrawButton(Msg.DrawItemStruct^);
+  Msg.Result := Integer(True);
+end;
+
+procedure TBitBtn.CNFocusChanged(var Msg: TMessage);
+begin
+  inherited;
+  Invalidate;
+end;
+
+procedure TBitBtn.DrawButton(const DrawItemStruct: TDrawItemStruct);
+var
+  Canvas: TCanvas;
+begin
+  Canvas := TCanvas.Create;
+  try
+    Canvas.Handle := DrawItemStruct.hDC;
+
+    Canvas.Brush.Style := bsSolid;
+    Canvas.Brush.Color := $2d2d2d;
+    Canvas.Rectangle(ClientRect);
+    Canvas.Brush.Style := bsClear;
+    Canvas.Font.Assign(Font);
+    Canvas.TextRect(ClientRect, 12,10,Self.Caption);//, [tfVerticalCenter, tfCenter, tfSingleLine]);
+  finally
+//    ReleaseDC(Canvas.Handle);
+    Canvas.Handle := 0;
+    Canvas.Free;
+  end;
+end;}
+
+
 
 end.
 
