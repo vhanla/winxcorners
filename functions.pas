@@ -18,7 +18,7 @@ interface
 
 uses
 Windows, Classes, TlHelp32, PsAPI, SysUtils, Registry, Graphics, DWMApi, PNGImage,
-OleAcc, Variants, DirectDraw, ActiveX;
+OleAcc, Variants, DirectDraw, ActiveX, ShellAPI;
 
 const
     DWMAPI_DLL = 'Dwmapi.dll';
@@ -90,6 +90,8 @@ procedure SwitchToThisWindow(h1: hWnd; x: bool); stdcall;
 
 procedure SwitchToThisWindowEx(handle: HWND; force: Boolean = True);
 
+procedure RunCommand(executable: string; params: string = ''; hidden: Boolean = False);
+
 function SetWindowCompositionAttribute(Wnd: HWND; const AttrData: TWinCompAttrData): BOOL; stdcall;
   external user32 Name 'SetWindowCompositionAttribute';
 
@@ -127,7 +129,7 @@ function DarkMode: BOOL; stdcall;
 implementation
 
 uses
-  Forms;
+  Forms, hotkeyhelper, conditionshelper;
 
 //http://stackoverflow.com/questions/95912/how-can-i-detect-if-my-process-is-running-uac-elevated-or-not
 {function ProcessIsElevated(Process: Cardinal): Boolean;
@@ -402,7 +404,7 @@ begin
       round(b*(a/255)+255-a)
   );
 
-  Result := newcolor;
+  Result := $00FF8000;//newcolor;
 end;
 
 function TaskbarTranslucent: Boolean;
@@ -788,7 +790,7 @@ var
 begin
   SwitchToThisWindow(handle, True);
   if GetForegroundWindow = handle then Exit;
-  
+
   curWnd := GetForegroundWindow;
   curWndProcThread := GetWindowThreadProcessId(curWnd, @fclientId);
   if curWndProcThread <> 0 then
@@ -808,6 +810,26 @@ begin
     end;
 
     SwitchToThisWindow(handle, True);
+  end;
+end;
+
+procedure RunCommand(executable: string; params: string = ''; hidden: Boolean = False);
+var
+  command: string;
+begin
+  command := trim(executable);
+  if Pos('!', command) = 1 then // it is a hotkey, hopefully :P
+  begin
+    command := Copy(command, 2, Length(command) - 1);
+    THotkeyInvoker.Instance.InvokeHotKey(command);
+  end
+  else if (Pos('#', command) = 1) or (Pos('@', command) = 1) then
+  begin
+    ParseAndExecuteCondition(command);
+  end
+  else
+  begin
+     ShellExecute(0, 'OPEN', PChar(executable), PChar(params), '', Integer(hidden))
   end;
 end;
 
