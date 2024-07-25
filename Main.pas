@@ -25,6 +25,9 @@ Features requested:
 - Virtual Desktop Screen switcher
 
 CHANGELOG:
+- 24-07-25
+  Add DLL (system wide) low level mouse hook (this might be optional otherwise it won't work on elevated windows)
+  Clean code/comments and refactor HotSpotAction repeated code
 - 24-06-30
   Add settings helper with json support
   Add improved workaround for activating on elevated process while being unelevated
@@ -91,19 +94,25 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics,
   Controls, Forms, Dialogs, ExtCtrls, ShellApi, Menus, Registry, //System.Generics.Collections,
-  VirtualDesktopManager
+  VirtualDesktopManager, MultiMon
   ;
 
 const
   WM_DPICHANGED = $02E0;
+  WM_MOUSE_EVENT = WM_USER + 100;
 
 type
 
-{  TScreens = class(TObject)
-    rect: TRect;
-  public
-    constructor Create(myRect: TRect);overload;
-  end;}
+  PMSLLHOOKSTRUCT = ^TMSLLHOOKSTRUCT;
+  TMSLLHOOKSTRUCT = record
+    pt: TPoint;
+    mouseData: DWORD;
+    flags: DWORD;
+    time: DWORD;
+    dwExtraInfo: ULONG_PTR;
+  end;
+
+  THotArea = (haNone, haLeft, haTopLeft, haTop, haTopRight, haRight, haBottomRight, haBottom, haBottomLeft);
 
   TfrmMain = class(TForm)
     tmrHotSpot: TTimer;
@@ -139,9 +148,9 @@ type
     procedure AutoStartState;
     procedure RegAutoStart(registerasrun: boolean = true);
     procedure WMDpiChanged(var Message: TMessage); message WM_DPICHANGED;
+    procedure WMMouseEvent(var Message: TMessage); message WM_MOUSE_EVENT;
   protected
     procedure WndProc(var Msg: TMessage); override;
-    //procedure WMCopyData(var Msg: TMessage); message WM_COPYDATA;
     procedure HotSpotAction(MPos: TPoint);
 
     procedure CurrentDesktopChanged(Sender: TObject; OldDesktop, NewDesktop: TVirtualDesktop);
@@ -159,10 +168,10 @@ var
   CurrentForegroundHwnd: HWND;
   wmTaskbarRestartMsg: Cardinal;
 
-//  Screens : TObjectList<TScreens>;
-
-//  procedure RunHook(Handle: HWND); cdecl; external 'WinXHelper.dll' name 'RunHook';
-//  procedure KillHook; cdecl; external 'WinXHelper.dll' name 'KillHook';
+  // Mouse Hook DLL function declarations
+  function InstallMouseHook(hTargetWnd: HWND): Boolean; stdcall; external 'WINXCORNERS.DLL';
+  function UninstallMouseHook: Boolean; stdcall; external 'WINXCORNERS.DLL';
+  procedure NotifyTargetReady; stdcall; external 'WINXCORNERS.DLL';
 
 implementation
 
@@ -186,6 +195,8 @@ begin
     Application.Terminate;
   end;
 
+  if not InstallMouseHook(Handle) then
+    raise Exception.Create('Failed to install mouse hook!');
 
   SetPriorityClass(GetCurrentProcess, $4000);
 
@@ -222,6 +233,7 @@ end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
+  UninstallMouseHook;
   //Screens.Free;
 //  KillHook;
 
@@ -308,7 +320,7 @@ begin
 
           //Windows.UI.Core.CoreWindow = classname of the Windows 10 Task View
 
-        //if GetForegroundWindow <> FindWindow('MultitaskingViewFrame','Vista Tareas') then
+        //if GetForegroundWindow <> FindWindow('MultitaskingViewFrame','Vista Tareas') then  //XamlExplorerHostIslandWindow on Win11
           if GetForegroundWindow = FindWindow('MultitaskingViewFrame', nil) then
             THotkeyInvoker.Instance.InvokeHotKey('escape')
           else
@@ -425,287 +437,99 @@ const
 var
   Screen1: TRect;
   I: Integer;
-{  HotSpotDetected: Boolean;
+  HotActionDelayEnabled: Boolean;
 
-  function IsHotSpotActive: Boolean;
+  function GetHotArea: THotArea;
   begin
-    Result := (GetKeyState(VK_LBUTTON) >= 0) and (GetKeyState(VK_MBUTTON) >= 0) and (GetKeyState(VK_RBUTTON) >= 0);
+    Result := haNone;
+    if (MPos.X >= Screen1.Left) and (MPos.X < Screen1.Left + HOTAREA)
+      and (MPos.Y >= Screen1.Top) and (MPos.Y < Screen1.Top + HOTAREA) then
+        Result := haTopLeft
+    else if (MPos.X > Screen1.Right - HotArea) and (MPos.X <= Screen1.Right - 1)
+      and (MPos.Y >= Screen1.Top) and (MPos.Y < Screen1.Top + HotArea) then
+        Result := haTopRight
+    else if (MPos.X >= Screen1.Left) and (MPos.X < Screen1.Left + HotArea)
+      and (MPos.Y <= Screen1.Bottom - 1) and (MPos.Y > Screen1.Bottom - HotArea) then
+        Result := haBottomLeft
+    else if (MPos.X <= Screen1.Right - 1) and (MPos.X > Screen1.Right - HotArea)
+      and (MPos.Y <= Screen1.Bottom - 1) and (MPos.Y > Screen1.Bottom - HotArea) then
+        Result := haBottomRight;
   end;
-
-  procedure PerformHotAction(ActionStr: string; Left, Top: Integer; IsFullScreen: Boolean);
-  begin
-    if Trim(ActionStr) = '' then Exit;
-    if not frmTrayPopup.XCheckbox1.Checked then Exit;
-    if not IsHotSpotActive then Exit;
-
-    if frmAdvSettings.chkDelayGlobal.Checked then
-    begin
-      hotActionDelay := StrToInt(frmAdvSettings.valDelayGlobal.Text);
-      hotActionDelayCounter := 0;
-      tmrDelay.Enabled := True;
-      if frmAdvSettings.chkShowCount.Checked then
-      begin
-        frmOSD.DrawBubble(IntToStr(hotActionDelay - hotActionDelayCounter));
-        frmOSD.Left := Left;
-        frmOSD.Top := Top;
-        if IsFullScreen then
-        begin
-          if not DetectFullScreenApp then
-            frmOSD.Show;
-        end
-        else
-          frmOSD.Show;
-      end;
-    end
-    else
-      HotAction(ActionStr);
-  end;}
 begin
-{  HotSpotDetected := False;
   for I := 0 to Screen.MonitorCount - 1 do
   begin
     Screen1 := Screen.Monitors[I].BoundsRect;
-    // inside current monitor boundaries
-    if (MPos.X >= Screen1.Left) and (MPos.X < Screen1.Right) and (MPos.Y >= Screen1.Top) and (MPos.Y < Screen1.Bottom) then
-    begin
-      if (MPos.X < Screen1.Left + HotArea) and (MPos.Y < Screen1.Top + HotArea) then
-      begin
-        if not OnHotSpot then
-        begin
-          OnHotSpot := True;
-          PerformHotAction(frmTrayPopup.XCombo1.Caption, Screen1.Left, Screen1.Top, frmAdvSettings.chkFullScreen.Checked);
-        end;
-        HotSpotDetected := True;
-        Break;
-      end
-      else if (MPos.X > Screen1.Right - HOTAREA) and (MPos.Y < Screen1.Top + HOTAREA) then
-      begin
-        if not OnHotSpot then
-        begin
-          OnHotSpot := True;
-          PerformHotAction(frmTrayPopup.XCombo2.Caption, Screen1.Right - frmOSD.Width, Screen1.Top, frmAdvSettings.chkFullScreen.Checked);
-        end;
-        HotSpotDetected := True;
-        Break;
-      end
-      else if (MPos.X < Screen1.Left + HOTAREA) and (MPos.Y > Screen1.Bottom - HOTAREA) then
-      begin
-        if not OnHotSpot then
-        begin
-          OnHotSpot := True;
-          PerformHotAction(frmTrayPopup.XCombo3.Caption, Screen1.Left, Screen1.Bottom - frmOSD.Height, frmAdvSettings.chkFullScreen.Checked);
-        end;
-        HotSpotDetected := True;
-        Break;
-      end
-      else if (MPos.X > Screen1.Right - HOTAREA) and (MPos.Y > Screen1.Bottom - HOTAREA) then
-      begin
-        if not OnHotSpot then
-        begin
-          OnHotSpot := True;
-          PerformHotAction(frmTrayPopup.XCombo4.Caption, Screen1.Right - frmOSD.Width, Screen1.Bottom - frmOSD.Height, frmAdvSettings.chkFullScreen.Checked);
-        end;
-        HotSpotDetected := True;
-        Break;
-      end;
-    end;
-  end;
+    if (MPos.X >= Screen1.Left) and (MPos.X < Screen1.Right)
+      and (MPos.Y >= Screen1.Top) and (MPos.Y < Screen1.Bottom)
+    then
+    begin // limit to check mouse coordinates within a monitor area
 
-  if not HotSpotDetected then
-  begin
-    OnHotSpot := False;
-    frmOSD.Hide;
-  end;
-
-  exit;}
-//Screens.Clear;
-  for I := 0 to Screen.MonitorCount - 1 do
-  begin
-    //Screens.Add(TScreens.Create(Screen.Monitors[I].WorkareaRect));
-
-    Screen1 := Screen.Monitors[I].BoundsRect;
-    //Screen1 := GetRectOfPrimaryMonitor(False);
-    if (MPos.X >= Screen1.Left)
-      and (MPos.X < Screen1.Right)
-      and (MPos.Y >= Screen1.Top)
-      and (MPos.Y < Screen1.Bottom)
-      then
-    begin
-
-
-      if (MPos.X >= Screen1.Left)
-        and (MPos.X < Screen1.Left + HotArea)
-        and (MPos.Y >= Screen1.Top)
-        and (MPos.Y < Screen1.Top + HotArea) then
-      begin
-        if not OnHotSpot then
-        begin
-          OnHotSpot := True;
-          hotActionStr := frmTrayPopup.XCombo1.Caption;
-          if Trim(hotActionStr) = '' then Exit;
-          if not frmTrayPopup.XCheckbox1.Checked then Exit;
-          // avoid usage if mouse is in use (buttons down e.g.)
-          // if value is negative, it means is in use (aka held down)
-          if (GetKeyState(VK_LBUTTON) < 0)
-            or (GetKeyState(VK_MBUTTON) < 0)
-            or (GetKeyState(VK_RBUTTON) < 0)
-            then
-            Exit;
-
-          if frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayTopLeft.Checked then
+      hotActionDelay := frmAdvSettings.cbValDelayGlobal.ItemIndex + 1; // start from 1 loop, since 0 would be disabled
+      case GetHotArea() of
+        haTopLeft:
           begin
-            hotActionDelay := frmAdvSettings.cbvalDelayGlobal.ItemIndex + 1; // start from 1 loop, since 0 would be disabled
+            hotActionStr := frmTrayPopup.XCombo1.Caption;
+            HotActionDelayEnabled := frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayTopLeft.Checked;
             if frmAdvSettings.chkDelayTopLeft.Enabled then
               hotActionDelay := frmAdvSettings.cbValDelayTopLeft.ItemIndex + 1;
-
-            hotActionDelayCounter := 0;
-            tmrDelay.Enabled := True;
-            if frmAdvSettings.chkShowCount.Checked then
-            begin
-              frmOSD.DrawBubble(IntToStr(hotActionDelay - hotActionDelayCounter));
-              frmOSD.Left := Screen1.Left;
-              frmOSD.Top := Screen1.Top;
-              if frmAdvSettings.chkFullScreen.Checked then
-              begin
-                if not DetectFullScreenApp then
-                  frmOSD.Show;
-              end
-              else
-                frmOSD.Show;
-            end;
-          end
-          else
-            HotAction(hotActionStr);
-        end;
-      end
-
-      else if (MPos.X > Screen1.Right - HotArea)
-        and (MPos.X <= Screen1.Right - 1)
-        and (MPos.Y >= Screen1.Top)
-        and (MPos.Y < Screen1.Top + HotArea) then
-      begin
-        if not OnHotSpot then
-        begin
-          OnHotSpot := True;
-          //HotAction(frmTrayPopup.XCombo2.Caption);
-          hotActionStr := frmTrayPopup.XCombo2.Caption;
-          if Trim(hotActionStr) = '' then Exit;
-          if not frmTrayPopup.XCheckbox1.Checked then Exit;
-          // avoid usage if mouse is in use (buttons down e.g.)
-          // if value is negative, it means is in use (aka held down)
-          if (GetKeyState(VK_LBUTTON) < 0)
-            or (GetKeyState(VK_MBUTTON) < 0)
-            or (GetKeyState(VK_RBUTTON) < 0)
-            then
-            Exit;
-
-          if frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayTopRight.Checked then
+            frmOSD.Left := Screen1.Left;
+            frmOSD.Top := Screen1.Top;
+          end;
+        haTopRight:
           begin
-            hotActionDelay := frmAdvSettings.cbValDelayGlobal.ItemIndex + 1;
+            hotActionStr := frmTrayPopup.XCombo2.Caption;
+            HotActionDelayEnabled := frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayTopRight.Checked;
             if frmAdvSettings.chkDelayTopRight.Enabled then
               hotActionDelay := frmAdvSettings.cbValDelayTopRight.ItemIndex + 1;
-
-            hotActionDelayCounter := 0;
-            tmrDelay.Enabled := True;
-            if frmAdvSettings.chkShowCount.Checked then
-            begin
-              frmOSD.DrawBubble(IntToStr(hotActionDelay - hotActionDelayCounter));
-              frmOSD.Left := Screen1.Right - frmOSD.Width;
-              frmOSD.Top := Screen1.Top;
-              if frmAdvSettings.chkFullScreen.Checked then
-              begin
-                if not DetectFullScreenApp then
-                  frmOSD.Show;
-              end
-              else
-                frmOSD.Show;
-            end;
-          end
-          else
-            HotAction(hotActionStr);
-        end;
-      end
-
-      else if (MPos.X >= Screen1.Left)
-        and (MPos.X < Screen1.Left + HotArea)
-        and (MPos.Y <= Screen1.Bottom - 1)
-        and (MPos.Y > Screen1.Bottom - HotArea) then
-      begin
-        if not OnHotSpot then
-        begin
-          OnHotSpot := True;
-          //HotAction(frmTrayPopup.XCombo3.Caption);
-          hotActionStr := frmTrayPopup.XCombo3.Caption;
-          if Trim(hotActionStr) = '' then Exit;
-          if not frmTrayPopup.XCheckbox1.Checked then Exit;
-          // avoid usage if mouse is in use (buttons down e.g.)
-          // if value is negative, it means is in use (aka held down)
-          if (GetKeyState(VK_LBUTTON) < 0)
-            or (GetKeyState(VK_MBUTTON) < 0)
-            or (GetKeyState(VK_RBUTTON) < 0)
-            then
-            Exit;
-
-          if frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayBotLeft.Checked then
+            frmOSD.Left := Screen1.Right - frmOSD.Width;
+            frmOSD.Top := Screen1.Top;
+          end;
+        haBottomLeft:
           begin
-            hotActionDelay := frmAdvSettings.cbValDelayGlobal.ItemIndex + 1;
+            hotActionStr := frmTrayPopup.XCombo3.Caption;
+            HotActionDelayEnabled := frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayBotLeft.Checked;
             if frmAdvSettings.chkDelayBotLeft.Enabled then
               hotActionDelay := frmAdvSettings.cbValDelayBotLeft.ItemIndex + 1;
-
-            hotActionDelayCounter := 0;
-            tmrDelay.Enabled := True;
-            if frmAdvSettings.chkShowCount.Checked then
-            begin
-              frmOSD.DrawBubble(IntToStr(hotActionDelay - hotActionDelayCounter));
-              frmOSD.Left := Screen1.Left;
-              frmOSD.Top := Screen1.Bottom - frmOSD.Height;
-              if frmAdvSettings.chkFullScreen.Checked then
-              begin
-                if not DetectFullScreenApp then
-                  frmOSD.Show;
-              end
-              else
-                frmOSD.Show;
-            end;
-          end
-          else
-            HotAction(hotActionStr);
-        end;
-      end
-
-      else if (MPos.X <= Screen1.Right - 1)
-        and (MPos.X > Screen1.Right - HotArea)
-        and (MPos.Y <= Screen1.Bottom - 1)
-        and (MPos.Y > Screen1.Bottom - HotArea) then
-      begin
-        if not OnHotSpot then
-        begin
-          OnHotSpot := True;
-          //HotAction(frmTrayPopup.XCombo4.Caption);
-          hotActionStr := frmTrayPopup.XCombo4.Caption;
-          if Trim(hotActionStr) = '' then Exit;
-          if not frmTrayPopup.XCheckbox1.Checked then Exit;
-          // avoid usage if mouse is in use (buttons down e.g.)
-          // if value is negative, it means is in use (aka held down)
-          if (GetKeyState(VK_LBUTTON) < 0)
-            or (GetKeyState(VK_MBUTTON) < 0)
-            or (GetKeyState(VK_RBUTTON) < 0)
-            then
-            Exit;
-
-          if frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayBotRight.Checked then
+            frmOSD.Left := Screen1.Left;
+            frmOSD.Top := Screen1.Bottom - frmOSD.Height;
+          end;
+        haBottomRight:
           begin
-            hotActionDelay := frmAdvSettings.cbValDelayGlobal.ItemIndex + 1;
+            hotActionStr := frmTrayPopup.XCombo4.Caption;
+            HotActionDelayEnabled := frmAdvSettings.chkDelayGlobal.Checked or frmAdvSettings.chkDelayBotRight.Checked;
             if frmAdvSettings.chkDelayBotRight.Enabled then
               hotActionDelay := frmAdvSettings.cbValDelayBotRight.ItemIndex + 1;
+            frmOSD.Left := Screen1.Right - frmOSD.Width;
+            frmOSD.Top := Screen1.Bottom - frmOSD.Height;
+          end;
+        else
+        begin
+          OnHotSpot := False;
+          frmOSD.Hide;
+          break;// to no do the code below
+        end;
+      end; //.case of
 
+      if not OnHotSpot then
+      begin
+        OnHotSpot := True;
+        if Trim(hotActionStr) = '' then Exit;
+        if not frmTrayPopup.XCheckbox1.Checked then Exit;
+        // avoid usage if mouse is in use (buttons down e.g.)
+        // if value is negative, it means is in use (aka held down)
+        if (GetKeyState(VK_LBUTTON) < 0)
+          or (GetKeyState(VK_MBUTTON) < 0)
+          or (GetKeyState(VK_RBUTTON) < 0)
+          then
+            Exit;
+
+        if HotActionDelayEnabled then
+          begin
             hotActionDelayCounter := 0;
             tmrDelay.Enabled := True;
             if frmAdvSettings.chkShowCount.Checked then
             begin
               frmOSD.DrawBubble(IntToStr(hotActionDelay - hotActionDelayCounter));
-              frmOSD.Left := Screen1.Right - frmOSD.Width;
-              frmOSD.Top := Screen1.Bottom - frmOSD.Height;
               if frmAdvSettings.chkFullScreen.Checked then
               begin
                 if not DetectFullScreenApp then
@@ -718,22 +542,11 @@ begin
           else
             HotAction(hotActionStr);
         end;
-      end
-
-      else
-      begin
-        OnHotSpot := False;
-        frmOSD.Hide;
       end;
 
-    end;
-  end;
-
-{  if CurrentForegroundHwnd <> GetForegroundWindow then
-  begin
-    CurrentForegroundHwnd := GetForegroundWindow;
-    Caption := GetProcessNameFromWnd(CurrentForegroundHwnd);
-  end;}
+    // let's break here since the other monitors won't be necessary to check against
+    break;
+  end;//
 end;
 
 procedure TfrmMain.Iconito(var Msg: TMessage);
@@ -791,7 +604,6 @@ end;
 
 procedure TfrmMain.tmFullScreenClick(Sender: TObject);
 begin
-//
   tmFullScreen.Checked := not tmFullScreen.Checked;
   frmAdvSettings.chkFullScreen.Checked := tmFullScreen.Checked;
   frmAdvSettings.SaveAdvancedIni;
@@ -816,13 +628,15 @@ var
 //  Desk: HDESK;
   Cur: THandle;
 begin
-
+  Exit;
 //  Desk := OpenInputDesktop(0, False, READ_CONTROL or DESKTOP_READOBJECTS);
 //  if Desk <> NULL then
 //  begin
   Cur := 0;
   try
-    MPos := Mouse.CursorPos;
+    // fix for some screen resolutions changing or some errors, avoid a hot screen accidental invoke
+    if not Windows.GetCursorPos(MPos) then
+      MPos := Point(120, 120);
       // LogonUI (Ctrl+Alt+Del) doesn't return GetForegroundWindow
     Cur := GetForegroundWindow;
   except
@@ -835,7 +649,7 @@ begin
 //    CloseHandle(Desk);
 //  end
 //  else Exit;
-
+//  frmAdvSettings.Caption := IntToStr(MPos.X);
   HotSpotAction(MPos);
 
 end;
@@ -887,35 +701,6 @@ begin
     Shell_NotifyIcon(NIM_ADD, @iconData);
 end;
 
-
-{procedure TfrmMain.WMCopyData(var Msg: TMessage);
-var
-  FMsg: PCopyDataStruct;
-  Data: PMouseHookStruct;
-begin
-  Msg.Result := 0;
-  FMsg := PCopyDataStruct(Msg.LParam);
-  if FMsg = nil then
-    Exit;
-
-  Data := PMouseHookStruct(FMsg.lpData);
-//  Str := String(UTF8String(PAnsiChar(FMsg^.lpData)));
-//  MsgID := FMsg^.dwData;
-//  case MsgID of
-//    WM_MOUSE_COORDS:
-//    begin
-//
-//    end;
-//  end;
-
-  frmTrayPopup.Label1.Caption := IntToStr(Data^.pt.X);
-  Inc(Data^.pt.X);
-  Inc(Data^.pt.Y);
-  HotSpotAction(Data^.pt);
-
-  Msg.Result := 1;
-end;}
-
 {-$DEFINE DELPHI_STYLE_SCALING}
 
 procedure TfrmMain.WMDpiChanged(var Message: TMessage);
@@ -944,6 +729,32 @@ begin
   ChangeScale(LOWORD(Message.wParam), self.PixelsPerInch);
 {$ENDIF}
   Self.PixelsPerInch := LOWORD(Message.WParam);
+end;
+
+procedure TfrmMain.WMMouseEvent(var Message: TMessage);
+var
+  Cur: THandle;
+  MPos: TPoint;
+begin
+  Cur := 0;
+  try
+    // the DLL hook doesn't return correct coordinates
+    if not Windows.GetCursorPos(MPos) then
+    MPos := Point(120, 120);
+
+    Cur := GetForegroundWindow; // it will likely fail on windows locked (Win+L)
+  except
+    Cur := 0;
+  end;
+
+  if Cur <> 0 then
+  begin
+    HotSpotAction(MPos);
+  end;
+
+//  frmAdvSettings.Caption := IntToStr(MPos.X); // just to check if the mouse coordinates are correct
+
+  NotifyTargetReady; // tell the mouse hook we are ready for new messages
 end;
 
 procedure TfrmMain.WndProc(var Msg: TMessage);
@@ -997,7 +808,7 @@ end;
 
 procedure TfrmMain.About1Click(Sender: TObject);
 begin
-  MessageDlg('WinXCorners 1.3'#13#10'Author: vhanla'#13#10'https://apps.codigobit.info', mtInformation, [mbok], 0);
+  MessageDlg('WinXCorners 1.3.1'#13#10'Author: vhanla'#13#10'https://apps.codigobit.info', mtInformation, [mbok], 0);
 end;
 
 procedure TfrmMain.Advanced1Click(Sender: TObject);
@@ -1051,13 +862,6 @@ begin
 
   emporarydisabled1.Checked := not emporarydisabled1.Checked;
 end;
-
-{ TScreens }
-
-{constructor TScreens.Create(myRect: TRect);
-begin
-  rect := myRect;
-end;}
 
 end.
 
