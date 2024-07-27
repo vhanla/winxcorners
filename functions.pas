@@ -2,6 +2,10 @@
 Functions that we will be using
 
 Changelog:
+24-07-27
+- Add undocumented DwmpGetColorizationParameters DWMapi.dll to get
+  the RGB values directly instead of precalculated with other params
+  given by DwmGetColorizationColor
 19-06-06
 - Support for light mode Windows 10 May 2019 Update
 18-09-03
@@ -18,12 +22,23 @@ interface
 
 uses
 Windows, Classes, TlHelp32, PsAPI, SysUtils, Registry, Graphics, DWMApi, PNGImage,
-OleAcc, Variants, DirectDraw, ActiveX, ShellAPI;
+OleAcc, Variants, DirectDraw, ActiveX, ShellAPI, Math;
 
 const
-    DWMAPI_DLL = 'Dwmapi.dll';
+    DWMAPI_DLL = 'dwmapi.dll';
 
 type
+  PDwmColorParams = ^TDwmColorParams;
+  TDwmColorParams = record
+    color: DWORD;
+    intensity: DWORD;
+    afterGlow: DWORD;
+    blurBalance: DWORD;
+    glassReflectionIntensity: DWORD;
+    opaqueBlend: DWORD;
+    useTransparency: Boolean;
+  end;
+
   AccentPolicy = packed record
     AccentState: Integer;
     AccentFlags: Integer;
@@ -104,7 +119,16 @@ function GetShellWindow:HWND;stdcall;
 
 function RtlGetVersion(var RTL_OSVERSIONINFOEXW): LONGINT; stdcall;
   external 'ntdll.dll' Name 'RtlGetVersion';
-function DwmGetColorizationColor(out pcrColorization: DWORD; out pfOpaqueBlend: boolean): HResult; stdcall; external DWMAPI_DLL;
+//function DwmGetColorizationColor(out pcrColorization: DWORD; out pfOpaqueBlend: boolean): HResult; stdcall; external DWMAPI_DLL;
+function DwmGetColorizationColor(var pcrColorization: DWORD;
+  var pfOpaqueBlend: BOOL): HResult; stdcall;
+  external 'dwmapi.dll' Name 'DwmGetColorizationColor';
+//function DwmpGetColorizationParameters(out dcpParams: TDwmColorParams): Integer; stdcall;
+//  external 'dwmapi.dll' index 127;
+function DwmpGetColorizationParameters(dcpParams: pointer): Integer; stdcall;
+  external 'dwmapi.dll' index 127;
+
+function GetColorizationColor:Cardinal;
 
 // For Windows 11 and above
 function AllowDarkModeForWindow(hWnd: HWND; fEnable: BOOL): BOOL; stdcall;
@@ -385,26 +409,72 @@ begin
 end;
 
 function GetAccentColor:TColor;
+//  function FloatFloor(const Value: Single): Single;
+//    begin
+//      Result := Floor(Value);
+//    end;
+//
+//  function GetByteOfDWORD(const Value: DWORD; const ByteIndex: Integer): Byte;
+//    begin
+//      Result := Byte((Value shr (ByteIndex * 8)) and $FF);
+//    end;
+//  function FloatMax(const A, B: Single): Single;
+//    begin
+//      Result := Max(A, B);
+//    end;
 var
-  col: Cardinal;
-  opaque: Boolean;
-  newColor: TColor;
-  a,r,g,b: byte;
+//  col: DWORD;
+//  opaque: BOOL;
+//  newColor: TColor;
+//  a,r,g,b: byte;
+
+//  blurBalanceNormalized, glassReflectionIntensityNormalized: Single;
+//  redNormalized, greenNormalized, blueNormalized: Single;
+//  colorIntensity: Single;
+//  tempRed, tempGreen, tempBlue: DWORD;
+//  colorParams: TDwmColorParams;
+//  hres: HRESULT;
+
+  buffer: array[0..39] of Byte;
 begin
-  DwmGetColorizationColor(col, opaque);
-  a := Byte(col shr 24);
-  r := Byte(col shr 16);
-  g := Byte(col shr 8);
-  b := Byte(col);
+  DwmpGetColorizationParameters(@buffer[0]);
+  Result := RGB(buffer[2], buffer[1], buffer[0]);
 
+//  hres := DwmpGetColorizationParameters(colorParams);
 
-  newcolor := RGB(
-      round(r*(a/255)+255-a),
-      round(g*(a/255)+255-a),
-      round(b*(a/255)+255-a)
-  );
+//  blurBalanceNormalized := colorParams.blurBalance / 100.0;
+//  glassReflectionIntensityNormalized := colorParams.glassReflectionIntensity / 100.0;
+//  redNormalized := GetByteOfDWORD(colorParams.color, 1) / 255.0;
+//  greenNormalized := GetByteOfDWORD(colorParams.color, 2) / 255.0;
+//  blueNormalized := GetByteOfDWORD(colorParams.color, 0) / 255.0;
+//
+//  colorIntensity := ((redNormalized * 0.71520001 + greenNormalized * 0.21259999 + blueNormalized * 0.0722) *
+//                     blurBalanceNormalized) * glassReflectionIntensityNormalized;
+//
+//  tempBlue := Trunc(FloatFloor((GetByteOfDWORD(colorParams.color, 6) / 255.0 * colorIntensity + greenNormalized * glassReflectionIntensityNormalized) * 255.0 + 0.5));
+//  tempGreen := (Trunc(FloatFloor(FloatMax(1.0 - blurBalanceNormalized - colorParams.opaqueBlend / 100.0, 0.0) * 255.0 + 0.5)) shl 8) or tempBlue;
+//  tempGreen := tempGreen shl 8;
+//  tempRed := Trunc(FloatFloor((GetByteOfDWORD(colorParams.color, 5) / 255.0 * colorIntensity + redNormalized * glassReflectionIntensityNormalized) * 255.0 + 0.5)) or tempGreen;
+//  tempRed := tempRed shl 8;
+//
+//  Result := Trunc(FloatFloor((GetByteOfDWORD(colorParams.color, 4) / 255.0 * colorIntensity + blueNormalized * glassReflectionIntensityNormalized) * 255.0 + 0.5)) or tempRed;
 
-  Result := $00FF8000;//newcolor;
+//  tempBlue := Trunc(Floor(((Byte((colorParams.color shr (6*8)) and $FF)) / 255.0 * colorIntensity + greenNormalized * glassReflectionIntensityNormalized) * 255.0 + 0.5));
+  //DwmGetColorizationColor(col, opaque);
+//  col := GetColorizationColor; //0x45fb23 //23 45 FB
+//  a := 255;//Byte(col shr 24);
+//  g := Byte(col shr 16);
+//  b := Byte(col shr 8);
+//  r := Byte(col);
+//
+//
+//  newcolor := RGB(
+//      round(r*(a/255)+255-a),
+//      round(g*(a/255)+255-a),
+//      round(b*(a/255)+255-a)
+//  );
+//
+//  Result := RGB(b,g,r);//$00FF8000;//newcolor;
 end;
 
 function TaskbarTranslucent: Boolean;
@@ -832,5 +902,17 @@ begin
      ShellExecute(0, 'OPEN', PChar(executable), PChar(params), '', Integer(hidden))
   end;
 end;
+
+function GetColorizationColor:Cardinal;
+var
+  p: array[0..39] of Byte;
+begin
+  Result := $FF000000;
+
+  DwmpGetColorizationParameters(@p[0]);
+  Result := $FF000000 or RGB(p[0],p[1],p[2]);
+
+end;
+
 
 end.
