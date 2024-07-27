@@ -1,5 +1,9 @@
 {
 Changelog:
+- 24-07-27
+  Fix colorization using undocumented DwmpGetColorizationParameters DWMAPI.DLL in functions.pas
+  because documented DwmGetColorizationColor fails and even if it succedes, it won't return the RGB but
+  a different calculated one.
 - 24-06-12
   Add Windows 11 rounded style, darkmode support too
 - 24-06-11
@@ -659,7 +663,14 @@ begin
     rf.Width := r.Right - r.Left;
     rf.Height := r.Bottom - r.Top;
 
-    DwmGetColorizationColor(dwmcol , dwmopaque);
+//    DwmIsCompositionEnabled(dwmopaque);
+
+//    hres := DwmGetColorizationColor(dwmcol, dwmopaque);
+//    if hres <> S_OK then
+//    begin
+//      ShowMessage(SysErrorMessage(GetLastError));
+//    end;
+    dwmcol := GetColorizationColor;
    { GdipCreateLineBrushFromRect(@rf, ARGBMake(Round(255 * FFade / 3), $60, $A0, $FF),
       ARGBMake(255, $20, $60, $FF), LinearGradihideentModeVertical, WrapModeTile, Brush); }
    // Colorized menu item
