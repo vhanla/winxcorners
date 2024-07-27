@@ -171,7 +171,7 @@ var
   // Mouse Hook DLL function declarations
   function InstallMouseHook(hTargetWnd: HWND): Boolean; stdcall; external 'WINXCORNERS.DLL';
   function UninstallMouseHook: Boolean; stdcall; external 'WINXCORNERS.DLL';
-  procedure NotifyTargetReady; stdcall; external 'WINXCORNERS.DLL';
+//  procedure NotifyTargetReady; stdcall; external 'WINXCORNERS.DLL';
 
 implementation
 
@@ -754,7 +754,7 @@ begin
 
 //  frmAdvSettings.Caption := IntToStr(MPos.X); // just to check if the mouse coordinates are correct
 
-  NotifyTargetReady; // tell the mouse hook we are ready for new messages
+//  NotifyTargetReady; // tell the mouse hook we are ready for new messages
 end;
 
 procedure TfrmMain.WndProc(var Msg: TMessage);
