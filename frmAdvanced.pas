@@ -184,13 +184,13 @@ end;
 
 procedure TfrmAdvSettings.edCommandChange(Sender: TObject);
 begin
-  if Sender is TEdit then
+  if Sender is TButtonedEdit then
     tmpcmdcli[FCurTab] := edCommand.Text;
 end;
 
 procedure TfrmAdvSettings.edParamsChange(Sender: TObject);
 begin
-  if Sender is TEdit then
+  if Sender is TButtonedEdit then
     tmpcmdarg[FCurTab] := edParams.Text;
 end;
 
