@@ -1,22 +1,7 @@
 format PE GUI 4.0 DLL
 entry DllEntryPoint
 
-include 'win32a.inc'
-
-section '.data' data readable writeable
-
-;MSLLHOOKSTRUCT:
-;  .pt   POINT
-;  .mouseData    dd ?
-;  .flags        dd ?
-;  .time         dd ?
-;  .dwExtraInfo  dd ?
-
-MOUSELLHOOKSTRUCT:
-  .pt POINT
-  .hwnd dd ?
-  .wHitTestCode dd ?
-  .dwExtraInfo dd ?
+include 'win32ax.inc'
 
 SMTO_NORMAL=0
 
@@ -32,7 +17,6 @@ section '.data' data readable writeable
   lastY         dd -1
   lastEventTime dd 0
   lastSendTime  dd 0
-  isTargetReady dd 1
 
 section '.code' code readable executable
 
@@ -59,61 +43,26 @@ proc MouseHookProc nCode, wParam, lParam
   invoke GetTickCount
   mov ebx, eax
 
-  ; Check for timeout and reset if necessary
-;  mov ecx, [lastSendTime]
-;  add ecx, MOUSE_EVENT_TIMEOUT
-;  cmp ebx, ecx
-;  jl .checkReady
-;  mov dword [isTargetReady], 1
-
-.checkReady:
-  ; Check if target is ready for new message
-  cmp dword [isTargetReady], 0
-  je .exit
-
   ; Check debounce time
   mov ecx, [lastEventTime]
   add ecx, DEBOUNCE_TIME
   cmp ebx, ecx
   jl .exit
 
-  ; Get mouse coordinates
-;  mov esi, [lParam]
-;  mov edi, [esi + MOUSELLHOOKSTRUCT.pt.x]
-;  mov ecx, [esi + MOUSELLHOOKSTRUCT.pt.y]
-
-  ; Check if mouse has moved or clicked
-;  cmp edi, [lastX]
-;  jne .sendMessage
-;  cmp ecx, [lastY]
-;  jne .sendMessage
-;  cmp dword [wParam], 0
-;  jne .sendMessage
-;  jmp .exit
-
 .sendMessage:
-  ; Update last known position and time
-;  mov [lastX], edi
-;  mov [lastY], ecx
+  ; Update last known time
   mov [lastEventTime], ebx
-
-  ; Set target as not ready
-  mov dword [isTargetReady], 0
 
   ; Send message to target window
   invoke SendMessageTimeout, [hTargetWindow], WMU_MOUSE_EVENT, [wParam], [lParam], SMTO_NORMAL, 1000, 0
-
-  ; Check if message was sent successfully
   test eax, eax
-  jz .messageFailed
+  jnz .exit
 
-  ; Message sent successfully
-  mov [lastSendTime], ebx
-  jmp .exit
-
-.messageFailed:
-  ; Message failed to send, set target as ready for next attempt
-  mov dword [isTargetReady], 1
+  ; If sending message failed, update target window
+  invoke FindWindow, 'WinXCorners', NULL
+  test eax, eax
+  jz .exit
+  mov [hTargetWindow], eax
 
 .exit:
   pop edi esi ecx ebx
@@ -156,11 +105,6 @@ proc UninstallMouseHook
   ret
 endp
 
-proc NotifyTargetReady
-  mov dword [isTargetReady], 1
-  ret
-endp
-
 section '.idata' import data readable
   library KERNEL32, 'KERNEL32.DLL',\
           USER32, 'USER32.DLL'
@@ -172,14 +116,14 @@ section '.idata' import data readable
          CallNextHookEx, 'CallNextHookEx',\
          SendMessageTimeout, 'SendMessageTimeoutA',\
          SetWindowsHookEx, 'SetWindowsHookExA',\
-         UnhookWindowsHookEx, 'UnhookWindowsHookEx'
+         UnhookWindowsHookEx, 'UnhookWindowsHookEx',\
+         FindWindow, 'FindWindowA'
 
 section '.edata' export data readable
 
   export 'WINXCORNERS.DLL',\
     InstallMouseHook, 'InstallMouseHook',\
-    UninstallMouseHook, 'UninstallMouseHook',\
-    NotifyTargetReady, 'NotifyTargetReady'
+    UninstallMouseHook, 'UninstallMouseHook'
 
 section '.reloc' fixups data readable discardable
 
