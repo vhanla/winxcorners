@@ -18,6 +18,12 @@ section '.data' data readable writeable
   lastEventTime dd 0
   lastSendTime  dd 0
 
+struct MouseStat
+  x    dd ? ; Current X coordinate
+  y    dd ? ; Current Y coordinate
+  time dq ? ; Timestamp of last event
+ends
+
 section '.code' code readable executable
 
 proc DllEntryPoint hinstDLL, fdwReason, lpvReserved
@@ -32,12 +38,15 @@ endp
 proc MouseHookProc nCode, wParam, lParam
   push ebx ecx esi edi
 
-  ; Call the next hook in the chain
-  invoke CallNextHookEx, [hHook], [nCode], [wParam], [lParam]
-
-  ; Check if we should process this message
+  ; First, check if we should process this message
   cmp dword [nCode], HC_ACTION
-  jl .exit
+  jl .callNextHook
+
+  ; Check if this is a mouse-related message
+  cmp [wParam], WM_MOUSEMOVE
+  jne .callNextHook
+
+  jmp .sendMessage
 
 .readTimestamp:
   rdtsc                         ; Read the time-stamp counter
@@ -63,9 +72,10 @@ proc MouseHookProc nCode, wParam, lParam
   cmp ebx, ecx
   jl .exit
 
-.sendMessage:
   ; Update last known time
   mov [lastEventTime], ebx
+
+.sendMessage:
 
   ; Send message to target window
   invoke SendMessageTimeout, [hTargetWindow], WMU_MOUSE_EVENT, [wParam], [lParam], SMTO_NORMAL, 1000, 0
@@ -77,6 +87,10 @@ proc MouseHookProc nCode, wParam, lParam
   test eax, eax
   jz .exit
   mov [hTargetWindow], eax
+
+.callNextHook:
+  ; Call the next hook in the chain
+  invoke CallNextHookEx, [hHook], [nCode], [wParam], [lParam]
 
 .exit:
   pop edi esi ecx ebx
