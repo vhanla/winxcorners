@@ -39,10 +39,24 @@ proc MouseHookProc nCode, wParam, lParam
   cmp dword [nCode], HC_ACTION
   jl .exit
 
-  ; Get current time
-  invoke GetTickCount
-  mov ebx, eax
+.readTimestamp:
+  rdtsc                         ; Read the time-stamp counter
+  shl edx, 32                   ; Shift high part to upper 32 bits
+  or eax, edx                   ; Combine into a 64-bit value EAX (low) and EDX (high)
+  mov ebx, eax                  ; Store the result in EBX for comparison
 
+  ; Handle potential overflow (if needed for specific environments)
+  cmp eax, [lastEventTime]      ; Compare with last timestamp
+  jb .reset                     ; If overflow occurred, reset lastEventTime
+  jmp .normal
+.reset:
+  mov [lastEventTime], 0        ; Reset timestamp
+
+  ; Get current time — seems that GetTickCount might be disabled or corrupted by anticheat software for specific games hence we use rdtsc instead
+;  invoke GetTickCount
+;  mov ebx, eax
+
+.normal:
   ; Check debounce time
   mov ecx, [lastEventTime]
   add ecx, DEBOUNCE_TIME
