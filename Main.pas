@@ -25,6 +25,10 @@ Features requested:
 - Virtual Desktop Screen switcher
 
 CHANGELOG:
+- 24-12-01
+  Add function to get TaskView title name in order to detect its window with FindWindow
+- 24-11-28
+  Add logging window in order to log actions
 - 24-07-25
   Add DLL (system wide) low level mouse hook (this might be optional otherwise it won't work on elevated windows)
   Clean code/comments and refactor HotSpotAction repeated code
@@ -105,11 +109,11 @@ type
 
   PMSLLHOOKSTRUCT = ^TMSLLHOOKSTRUCT;
   TMSLLHOOKSTRUCT = record
-    pt: TPoint;
-    mouseData: DWORD;
-    flags: DWORD;
-    time: DWORD;
-    dwExtraInfo: ULONG_PTR;
+    pt: TPoint;             // Mouse Coordinates
+    mouseData: DWORD;       // Additional mouse data
+    flags: DWORD;           // Event-injection flags
+    time: DWORD;            // Timestamp
+    dwExtraInfo: ULONG_PTR; // Extra information
   end;
 
   THotArea = (haNone, haLeft, haTopLeft, haTop, haTopRight, haRight, haBottomRight, haBottom, haBottomLeft);
@@ -125,6 +129,7 @@ type
     Advanced1: TMenuItem;
     tmFullScreen: TMenuItem;
     tmLine2: TMenuItem;
+    LogWindow1: TMenuItem;
     procedure tmrHotSpotTimer(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -134,6 +139,7 @@ type
     procedure tmrDelayTimer(Sender: TObject);
     procedure Advanced1Click(Sender: TObject);
     procedure tmFullScreenClick(Sender: TObject);
+    procedure LogWindow1Click(Sender: TObject);
   private
     { Private declarations }
     iconData: TNotifyIconData;
@@ -160,13 +166,15 @@ type
     { Public declarations }
     procedure CreateParams(var Params: TCreateParams); override;
     procedure UpdateTrayIcon(grayed: boolean = False; recreate: Boolean = False);
-
+    procedure Log(const Msg: string);
+    function GetTaskViewTitleFromMUI: string;
   end;
 
 var
   frmMain: TfrmMain;
   CurrentForegroundHwnd: HWND;
   wmTaskbarRestartMsg: Cardinal;
+  taskViewTitle: string;
 
   // Mouse Hook DLL function declarations
   function InstallMouseHook(hTargetWnd: HWND): Boolean; stdcall; external 'WINXCORNERS.DLL';
@@ -176,7 +184,7 @@ var
 implementation
 
 uses
-  functions, frmSettings, osdgui, frmAdvanced, Types, hotkeyhelper;
+  functions, frmSettings, osdgui, frmAdvanced, Types, hotkeyhelper, frmLoggingWindow;
 {$R *.dfm}
 
 const
@@ -199,6 +207,8 @@ begin
     raise Exception.Create('Failed to install mouse hook!');
 
   SetPriorityClass(GetCurrentProcess, $4000);
+
+  taskViewTitle := GetTaskViewTitleFromMUI;
 
   wmTaskbarRestartMsg := RegisterWindowMessage('TaskbarCreated');
 
@@ -244,6 +254,19 @@ begin
 
 //  if FRegisteredSessionNotification then
 //    WTSUnRegisterSessionNotification(Handle);
+end;
+
+function TfrmMain.GetTaskViewTitleFromMUI: string;
+const
+  TASKVIEWID = 900; // this one is located in the explorer.exe.mui strings
+var
+  lLocale: string;
+  lWindowsPath: string;
+begin
+  Result := 'Task View'; // en-US default title
+  lLocale := GetPreferredUILanguages;
+  lWindowsPath := GetWindowsPath;
+  Result := LoadMUIString(lWindowsPath + '\' + lLocale + '\explorer.exe.mui', TASKVIEWID);
 end;
 
 procedure TfrmMain.HotAction(hAction: string);
@@ -296,9 +319,14 @@ begin
 
   if frmAdvSettings.chkFullScreen.Checked then
   begin
-    if DetectFullScreen3D or DetectFullScreenApp then Exit;
+    if DetectFullScreen3D or DetectFullScreenApp then
+    begin
+      Log('Full Screen hot action blocked');
+      Exit;
+    end;
   end;
 
+  Log('HotAction event.');
 
   // avoid usage if mouse is in use (buttons down e.g.)
   // if value is negative, it means is in use (aka held down)
@@ -320,9 +348,12 @@ begin
 
           //Windows.UI.Core.CoreWindow = classname of the Windows 10 Task View
 
-        //if GetForegroundWindow <> FindWindow('MultitaskingViewFrame','Vista Tareas') then  //XamlExplorerHostIslandWindow on Win11
-          if GetForegroundWindow = FindWindow('MultitaskingViewFrame', nil) then
-            THotkeyInvoker.Instance.InvokeHotKey('escape')
+          if ((Win32BuildNumber >= 22000) and (GetForegroundWindow = FindWindow('XamlExplorerHostIslandWindow', nil)))
+          or ((Win32BuildNumber < 22000) and (GetForegroundWindow = FindWindow('Windows.UI.Core.CoreWindow', PChar(taskViewTitle)))) then
+              THotkeyInvoker.Instance.InvokeHotKey('escape')
+//            if GetForegroundWindow <> FindWindow('MultitaskingViewFrame','Vista Tareas') then  //XamlExplorerHostIslandWindow on Win11
+//          if GetForegroundWindow = FindWindow('MultitaskingViewFrame', nil) then // for ctrl+alt+tab
+//            THotkeyInvoker.Instance.InvokeHotKey('escape')
           else
           begin
             SwitchToThisWindowEx(Application.Handle, True);
@@ -581,6 +612,26 @@ begin
 
 end;
 
+procedure TfrmMain.Log(const Msg: string);
+var
+  TimeStamp: string;
+begin
+  if frmLogWindow.Visible then
+  begin
+    TimeStamp := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', Now);
+
+    if frmLogWindow.Memo1.Lines.Count > 500 then
+      frmLogWindow.Memo1.Lines.Clear;
+
+    frmLogWindow.Memo1.Lines.Add(Format('[%s] %s', [TimeStamp, Msg]));
+  end;
+end;
+
+procedure TfrmMain.LogWindow1Click(Sender: TObject);
+begin
+  frmLogWindow.Show;
+end;
+
 procedure TfrmMain.RegAutoStart(registerasrun: boolean);
 var
   reg: TRegistry;
@@ -752,6 +803,8 @@ begin
     HotSpotAction(MPos);
   end;
 
+  if frmLogWindow.Visible and frmLogWindow.chkMonMouse.Checked then
+    Log(Format('X:%d, Y:%d',[MPos.X, MPos.Y]));
 //  frmAdvSettings.Caption := IntToStr(MPos.X); // just to check if the mouse coordinates are correct
 
 //  NotifyTargetReady; // tell the mouse hook we are ready for new messages

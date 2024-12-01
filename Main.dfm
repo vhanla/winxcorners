@@ -48,6 +48,10 @@ object frmMain: TfrmMain
       Caption = 'Do Nothing on Full Screen '
       OnClick = tmFullScreenClick
     end
+    object LogWindow1: TMenuItem
+      Caption = 'Log Window'
+      OnClick = LogWindow1Click
+    end
     object tmLine2: TMenuItem
       Caption = '-'
     end
