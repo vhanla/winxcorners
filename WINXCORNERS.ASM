@@ -4,6 +4,7 @@ entry DllEntryPoint
 include 'win32ax.inc'
 
 SMTO_NORMAL=0
+SMTO_ABORTIFHUNG=2
 
 WMU_MOUSE_EVENT     equ WM_USER + 100
 MOUSE_EVENT_TIMEOUT equ 3000 ; 3 seconds in milliseconds
@@ -78,9 +79,9 @@ proc MouseHookProc nCode, wParam, lParam
 .sendMessage:
 
   ; Send message to target window
-  invoke SendMessageTimeout, [hTargetWindow], WMU_MOUSE_EVENT, [wParam], [lParam], SMTO_NORMAL, 1000, 0
+  invoke SendMessageTimeout, [hTargetWindow], WMU_MOUSE_EVENT, [wParam], [lParam], SMTO_ABORTIFHUNG or SMTO_NORMAL, 500, 0
   test eax, eax
-  jnz .exit
+  jnz .callNextHook
 
   ; If sending message failed, update target window
   invoke FindWindow, 'WinXCorners', NULL
