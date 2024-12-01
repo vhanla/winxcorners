@@ -22,10 +22,12 @@ interface
 
 uses
 Windows, Classes, TlHelp32, PsAPI, SysUtils, Registry, Graphics, DWMApi, PNGImage,
-OleAcc, Variants, DirectDraw, ActiveX, ShellAPI, Math;
+OleAcc, Variants, DirectDraw, ActiveX, ShellAPI, Math, ShlObj;
 
 const
     DWMAPI_DLL = 'dwmapi.dll';
+const
+  MUI_LANGUAGE_NAME = $08;
 
 type
   PDwmColorParams = ^TDwmColorParams;
@@ -129,6 +131,11 @@ function DwmpGetColorizationParameters(dcpParams: pointer): Integer; stdcall;
   external 'dwmapi.dll' index 127;
 
 function GetColorizationColor:Cardinal;
+function GetCurrentLocale: string;
+function GetMuiFilePath(const FileName: string): string;
+function GetPreferredUILanguages: string;
+function LoadMUIString(MUIPath: string; ResourceID: Integer): string;
+function GetWindowsPath: string;
 
 // For Windows 11 and above
 function AllowDarkModeForWindow(hWnd: HWND; fEnable: BOOL): BOOL; stdcall;
@@ -147,7 +154,24 @@ function SetPreferredAppMode(AppMode: Integer): Integer; stdcall;
   external 'uxtheme.dll' index 135;
 function DarkMode: BOOL; stdcall;
   external 'uxtheme.dll' index 136;
-
+function GetUserDefaultLocaleName(lpLocaleName: PChar; cchLocaleName: Integer): Integer; stdcall;
+  external 'kernel32.dll' name 'GetUserDefaultLocaleName';
+function GetFileMUIPath(dwFlags: DWORD; pcwszFilePath: LPCWSTR; pwszLanguage: LPWSTR;
+  var pcchLanguage: DWORD; pwszFileMUIPath: LPWSTR; var pcchFileMUIPath: DWORD;
+  pululEnumerator: PCardinal): BOOL; stdcall;
+  external 'Kernel32.dll' name 'GetFileMUIPath';
+function LCIDToLocaleName(Locale: LCID; lpName: LPWSTR; cchName: Integer; dwFlags: DWORD): Integer; stdcall;
+  external 'Kernel32.dll' name 'LCIDToLocaleName';
+function GetUserDefaultUILanguage: LANGID; stdcall;
+  external 'Kernel32.dll' name 'GetUserDefaultUILanguage';
+function GetSystemDefaultUILanguage: LANGID; stdcall;
+  external 'Kernel32.dll' name 'GetSystemDefaultUILanguage';
+function GetThreadPreferredUILanguages(dwFlags: DWORD; var pulNumLanguages: DWORD;
+  pszLanguages: LPWSTR; var pcchLanguages: DWORD): BOOL; stdcall;
+  external 'Kernel32.dll' name 'GetThreadPreferredUILanguages';
+function SHGetFolderPath(hwndOwner: HWND; nFolder: Integer; hToken: THANDLE;
+  dwFlags: DWORD; pszPath: PChar): HResult; stdcall;
+  external 'Shell32.dll' name 'SHGetFolderPathW';
 
 
 implementation
@@ -914,5 +938,90 @@ begin
 
 end;
 
+function GetCurrentLocale: string;
+var
+  Buffer: array[0..LOCALE_NAME_MAX_LENGTH - 1] of Char;
+begin
+  if GetUserDefaultLocaleName(Buffer, LOCALE_NAME_MAX_LENGTH) > 0 then
+    Result := Buffer
+  else
+    Result := 'en-US'; // TODO raise exception
+end;
+
+function GetMuiFilePath(const FileName: string): string;
+var
+  MUIPath: array[0..MAX_PATH - 1] of Char;
+  Langs: array[0..255] of Char;
+  PathSize, LangCount: DWORD;
+  EnumHandle: Cardinal;
+begin
+  PathSize := MAX_PATH;
+  LangCount := 255;
+  EnumHandle := 0;
+
+  if GetFileMUIPath(MUI_LANGUAGE_NAME, PChar(FileName), @Langs, LangCount, @MUIPath, PathSize, @EnumHandle) then
+    Result := MUIPath
+  else
+    raise Exception.CreateFmt('Failed to find MUI file for "%s". Error: %d', [FileName, GetLastError]);
+end;
+
+function GetPreferredUILanguages: string;
+var
+  NumLanguages: DWORD;
+  LanguagesBuffer: array[0..255] of Char; // Large enough buffer for multiple languages
+  BufferSize: DWORD;
+begin
+  NumLanguages := 0;
+  BufferSize := Length(LanguagesBuffer);
+
+  // Call to get the preferred UI languages
+  if GetThreadPreferredUILanguages(MUI_LANGUAGE_NAME, NumLanguages, LanguagesBuffer, BufferSize) then
+  begin
+    if Pos(';', LanguagesBuffer) > 0 then
+      Result := Copy(LanguagesBuffer, 1, Pos(';', LanguagesBuffer) - 1)
+    else
+      Result := LanguagesBuffer
+  end
+  else
+    raise Exception.CreateFmt('Failed to retrieve preferred UI languages. Error: %d', [GetLastError]);
+end;
+
+function LoadMUIString(MUIPath: string; ResourceID: Integer): string;
+var
+  lModule: HMODULE;
+  Buffer: array[0..255] of Char;
+  ResLen: Integer;
+begin
+  Result := '';
+
+  // Load the MUI file
+  lModule := LoadLibraryEx(PChar(MUIPath), 0, LOAD_LIBRARY_AS_DATAFILE);
+  if lModule = 0 then
+    raise Exception.CreateFmt('Could not load MUI file: %s', [MUIPath]);
+
+  try
+    // Load the string resource
+    ResLen := LoadString(lModule, ResourceID, Buffer, Length(Buffer));
+    if ResLen > 0 then
+      Result := Buffer
+    else
+      raise Exception.CreateFmt('Resource ID %d not found in %s', [ResourceID, MUIPath]);
+  finally
+    FreeLibrary(lModule);
+  end;
+end;
+
+function GetWindowsPath: string;
+const
+  SHGFP_TYPE_CURRENT = 0;
+  SHGFP_TYPE_DEFAULT = 1;
+var
+  WindowsPath: array[0..MAX_PATH - 1] of Char;
+begin
+  Result := '';
+  if SHGetFolderPath(0, CSIDL_WINDOWS, 0, SHGFP_TYPE_CURRENT, WindowsPath) <> S_OK then
+    raise Exception.Create('Unable to locate Windows directory.');
+  Result := WindowsPath;
+end;
 
 end.
