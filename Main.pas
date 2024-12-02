@@ -25,6 +25,10 @@ Features requested:
 - Virtual Desktop Screen switcher
 
 CHANGELOG:
+- 24-12-02
+  Replaced Low Level mouse hooks with Raw Input, since it is not reliable and from Windows 7 onwards
+  low level WH_MOUSE_LL hooks might be detacched by the OS without notification
+  which was happening due to timeouts.
 - 24-12-01
   Add function to get TaskView title name in order to detect its window with FindWindow
 - 24-11-28
@@ -155,6 +159,8 @@ type
     procedure RegAutoStart(registerasrun: boolean = true);
     procedure WMDpiChanged(var Message: TMessage); message WM_DPICHANGED;
     procedure WMMouseEvent(var Message: TMessage); message WM_MOUSE_EVENT;
+    procedure RegisterRawInput;
+    procedure ProcessRawInput(var Message: TMessage);
   protected
     procedure WndProc(var Msg: TMessage); override;
     procedure HotSpotAction(MPos: TPoint);
@@ -177,8 +183,8 @@ var
   taskViewTitle: string;
 
   // Mouse Hook DLL function declarations
-  function InstallMouseHook(hTargetWnd: HWND): Boolean; stdcall; external 'WINXCORNERS.DLL';
-  function UninstallMouseHook: Boolean; stdcall; external 'WINXCORNERS.DLL';
+//  function InstallMouseHook(hTargetWnd: HWND): Boolean; stdcall; external 'WINXCORNERS.DLL';
+//  function UninstallMouseHook: Boolean; stdcall; external 'WINXCORNERS.DLL';
 //  procedure NotifyTargetReady; stdcall; external 'WINXCORNERS.DLL';
 
 implementation
@@ -203,8 +209,10 @@ begin
     Application.Terminate;
   end;
 
-  if not InstallMouseHook(Handle) then
-    raise Exception.Create('Failed to install mouse hook!');
+//  if not InstallMouseHook(Handle) then
+//    raise Exception.Create('Failed to install mouse hook!');
+
+  RegisterRawInput;
 
   SetPriorityClass(GetCurrentProcess, $4000);
 
@@ -243,7 +251,7 @@ end;
 
 procedure TfrmMain.FormDestroy(Sender: TObject);
 begin
-  UninstallMouseHook;
+//  UninstallMouseHook;
   //Screens.Free;
 //  KillHook;
 
@@ -632,6 +640,57 @@ begin
   frmLogWindow.Show;
 end;
 
+procedure TfrmMain.ProcessRawInput(var Message: TMessage);
+var
+  DataSize: UINT;
+  lRawInput: Pointer;
+  lRaw: ^RAWINPUT;
+  Header: RAWINPUTHEADER;
+  Mouse: RAWMOUSE;
+
+  Cur: THandle;
+  MPos: TPoint;
+
+begin
+  if GetRawInputData(HRAWINPUT(Message.lParam), RID_INPUT, nil, DataSize, SizeOf(Header)) = 0 then
+  begin
+    GetMem(lRawInput, DataSize);
+    try
+      if GetRawInputData(HRAWINPUT(Message.LParam), RID_INPUT, lRawInput, DataSize, SizeOf(Header)) <> UINT(-1) then
+      begin
+        lRaw := lRawInput;
+        if lRaw^.Header.dwType = RIM_TYPEMOUSE then
+        begin
+          Mouse := lRaw^.mouse;
+
+          Cur := 0;
+          try
+            // the DLL hook doesn't return correct coordinates
+            if not Windows.GetCursorPos(MPos) then
+              MPos := Point(120, 120);
+            Cur := GetForegroundWindow; // it will likely fail on windows locked (Win+L)
+          except
+            Cur := 0;
+          end;
+
+          if Cur <> 0 then
+          begin
+            HotSpotAction(MPos);
+          end;
+
+          if frmLogWindow.Visible and frmLogWindow.chkMonMouse.Checked then
+            Log(Format('X:%d, Y:%d',[MPos.X, MPos.Y]));
+
+//          frmLogWindow.Memo1.Lines.Add(Format('Mouse Delta: X=%d, Y=%d', [Mouse.lLastX, Mouse.lLastY]));
+        end;
+
+      end;
+    finally
+      FreeMem(lRawInput);
+    end;
+  end;
+end;
+
 procedure TfrmMain.RegAutoStart(registerasrun: boolean);
 var
   reg: TRegistry;
@@ -651,6 +710,20 @@ begin
   finally
     reg.Free;
   end;
+end;
+
+procedure TfrmMain.RegisterRawInput;
+var
+  Rid: RAWINPUTDEVICE;
+begin
+  Rid.usUsagePage := HID_USAGE_PAGE_GENERIC; // Generic Desktop Controls
+  Rid.usUsage := HID_USAGE_GENERIC_MOUSE; // Mouse
+  Rid.dwFlags := RIDEV_INPUTSINK; // Receive input even if not focused
+  Rid.hwndTarget := Handle; // Target this window
+
+  if not RegisterRawInputDevices(@Rid, 1, SizeOf(RAWINPUTDEVICE)) then
+    raise Exception.Create('Failed to register raw input.');
+
 end;
 
 procedure TfrmMain.tmFullScreenClick(Sender: TObject);
@@ -839,6 +912,8 @@ begin
 
   end;
 
+  if Msg.Msg = WM_INPUT then
+    ProcessRawInput(Msg);
 
   if Msg.Msg = WM_WTSSESSION_CHANGE then
   begin
