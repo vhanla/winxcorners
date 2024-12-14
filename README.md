@@ -11,8 +11,12 @@
   <a href="https://github.com/vhanla/winxcorners/releases">
     <img src="https://img.shields.io/github/downloads/vhanla/winxcorners/total.svg" alt="total downloads">
   </a>
-  <!-- downloads latest release -->
+    <!-- downloads latest release -->
   <a href="https://github.com/vhanla/winxcorners/releases/latest">
+    <img src="https://img.shields.io/github/downloads/vhanla/winxcorners/1.3.1/total.svg" alt="total latest downloads">
+  </a>
+  <!-- downloads latest release -->
+  <a href="https://github.com/vhanla/winxcorners/releases/1.3.0">
     <img src="https://img.shields.io/github/downloads/vhanla/winxcorners/1.3.0/total.svg" alt="total latest downloads">
   </a>
   <!-- downloads latest most downloaded release -->
@@ -69,6 +73,8 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
     - [x] **Start Menu**: Invoke the Start Menu on hovering a corner.
     - [x] **Action Center**: Invoke the Action Center without hassle.
     - [x] **Hide Other Windows**: Just like `Win`+`Home`.
+    - [x] **Custom**: Invoke other executables with command line params 
+    - [x] 🆕 **Custom**: Execute custom hotkeys (sequence of key hold/release) *___v1.3.1___ (</a> How to <a href="#howtohotkey">⬇️</a>)
 
 2. **Customization**: Tailor WinXcorners to your preferences:
     - Assign different actions to different corners.
@@ -147,6 +153,36 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
     - Set specific delay for each corner.
     - Enable or Disable the triggering of actions while on Full Screen applications, it can also be done via the right click on the system tray icon for WinXcorners.
 4. Add up to 4 custom actions: Just write the commands and its respective arguments to launch, set hidden launch or visible. 
+
+## <a name="howtohotkey"></a> Custom Hotkeys  <a href="#winxcorners">⬆️</a>
+*___v1.3.1___
+
+The hotkeys will be as follows:
+`_control` or `control` or `control_` where `_` means hold or release (prefixed, appended) and without it, a full key press. This will be useful if you have a sequence of hotkeys to do, like `_control+k+control_+_control+_b` for VSCode for instance, that will do a `ctrl+k` then `ctrl+b` to toggle the sidebar.
+
+There is more, it will check for windows on foreground/currently focused, or globally, whether by only its classname or with titlebar text too. The conditional pseudo script will be as follows:
+```
+! = follows sequence of hotkeys as mentioned above
+# = follows [classname,title] there title is optional to match with current focused window
+@ = follows [classname,title] there title is optional to match with any opened window
+```
+
+### Rule:
+
+`#[classname,title]:(sequence of hotkeys)?(optional sequence of hotkeys in case condition is not met)`
+
+For instance the following will check if current window is VSCode's and will invoke `ctrl+k` `ctrl+b` sequence of hotkeys, other wise if not on VSCode, just invoke the Start Menu.
+
+`#[Chrome_WidgetWin_1]:(_control+k+control_+_control+_b)?(win)`
+
+E.g. `#[conditional match]:(hotkey if match)?(hotkey if not)`
+
+Another example for Windows 10: 
+
+This will check if Alt+Tab's window is visible, if so, it will hide it, otherwise it will invoke it, as a faster alternative to Task View.
+`#[MultitaskingViewFrame]:(escape)?(_control+_alt+tab)`
+
+![snap03](https://github.com/vhanla/winxcorners/blob/master/.github/snap03b.jpg?raw=true)
 
 ## Notes
 - WinXcorners works seamlessly on your primary monitor but secondary monitors haven't been tested throughfully, consider it partially supported.
