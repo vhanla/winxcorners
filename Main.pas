@@ -318,23 +318,43 @@ const
     Result := haNoAction;
   end;
 
-//var
+var
 //  Shell_SecondaryTrayWnd: HWND;
 //  procid: integer;
+  name: array[0..255] of char;
+  namesz: integer;
+  taskViewVisible: Boolean;
 begin
   if frmTrayPopup.tempDisabled then
     Exit;
+
+  if ((Win32BuildNumber >= 22000) and (GetForegroundWindow = FindWindow('XamlExplorerHostIslandWindow', PChar(taskViewTitle))))
+  or ((Win32BuildNumber < 22000) and (GetForegroundWindow = FindWindow('Windows.UI.Core.CoreWindow', PChar(taskViewTitle)))) then
+    taskViewVisible := True
+  else
+    taskViewVisible := False;
 
   if frmAdvSettings.chkFullScreen.Checked then
   begin
     if DetectFullScreen3D or DetectFullScreenApp then
     begin
       Log('Full Screen hot action blocked');
-      Exit;
+      if not taskViewVisible then
+        Exit;
     end;
   end;
 
-  Log('HotAction event.');
+  if frmLogWindow.Visible then
+  begin
+    Log('HotAction event.');
+
+    namesz := GetWindowTextLength(GetForegroundWindow);
+    if namesz > 0 then
+    begin
+      GetWindowText(GetForegroundWindow, name, namesz + 1);
+      Log('Current Window: ' + name);
+    end;
+  end;
 
   // avoid usage if mouse is in use (buttons down e.g.)
   // if value is negative, it means is in use (aka held down)
@@ -356,12 +376,16 @@ begin
 
           //Windows.UI.Core.CoreWindow = classname of the Windows 10 Task View
 
-          if ((Win32BuildNumber >= 22000) and (GetForegroundWindow = FindWindow('XamlExplorerHostIslandWindow', nil)))
-          or ((Win32BuildNumber < 22000) and (GetForegroundWindow = FindWindow('Windows.UI.Core.CoreWindow', PChar(taskViewTitle)))) then
+//          if ((Win32BuildNumber >= 22000) and (GetForegroundWindow = FindWindow('XamlExplorerHostIslandWindow', PChar(taskViewTitle))))
+//          or ((Win32BuildNumber < 22000) and (GetForegroundWindow = FindWindow('Windows.UI.Core.CoreWindow', PChar(taskViewTitle)))) then
+          if taskViewVisible then          
+          begin
+              Log('Task View found in foreground, let''s close it!');
               THotkeyInvoker.Instance.InvokeHotKey('escape')
 //            if GetForegroundWindow <> FindWindow('MultitaskingViewFrame','Vista Tareas') then  //XamlExplorerHostIslandWindow on Win11
 //          if GetForegroundWindow = FindWindow('MultitaskingViewFrame', nil) then // for ctrl+alt+tab
 //            THotkeyInvoker.Instance.InvokeHotKey('escape')
+          end
           else
           begin
             SwitchToThisWindowEx(Application.Handle, True);
@@ -418,28 +442,28 @@ begin
       begin
         if frmAdvSettings.chkCustom.Checked then
         begin
-          RunCommand(cmdcli[0], cmdarg[0], frmAdvSettings.chkHidden.Checked);
+          RunCommand(cmdcli[0], cmdarg[0], not frmAdvSettings.chkHidden.Checked);
         end;
       end;
     haCustomCmd2:
       begin
         if frmAdvSettings.chkCustom.Checked then
         begin
-          RunCommand(cmdcli[1], cmdarg[1], frmAdvSettings.chkHidden.Checked);
+          RunCommand(cmdcli[1], cmdarg[1], not frmAdvSettings.chkHidden.Checked);
         end;
       end;
     haCustomCmd3:
       begin
         if frmAdvSettings.chkCustom.Checked then
         begin
-          RunCommand(cmdcli[2], cmdarg[2], frmAdvSettings.chkHidden.Checked);
+          RunCommand(cmdcli[2], cmdarg[2], not frmAdvSettings.chkHidden.Checked);
         end;
       end;
     haCustomCmd4:
       begin
         if frmAdvSettings.chkCustom.Checked then
         begin
-          RunCommand(cmdcli[3], cmdarg[3], frmAdvSettings.chkHidden.Checked);
+          RunCommand(cmdcli[3], cmdarg[3], not frmAdvSettings.chkHidden.Checked);
         end;
       end;
     haToggleOtherWindows:
