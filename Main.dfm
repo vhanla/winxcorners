@@ -33,9 +33,9 @@ object frmMain: TfrmMain
       Caption = '&About'
       OnClick = About1Click
     end
-    object emporarydisabled1: TMenuItem
+    object mnuAutorun: TMenuItem
       Caption = '&Start with Windows'
-      OnClick = emporarydisabled1Click
+      OnClick = mnuAutorunClick
     end
     object Advanced1: TMenuItem
       Caption = 'Ad&vanced'

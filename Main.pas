@@ -126,7 +126,7 @@ type
     tmrHotSpot: TTimer;
     PopupMenu1: TPopupMenu;
     Exit1: TMenuItem;
-    emporarydisabled1: TMenuItem;
+    mnuAutorun: TMenuItem;
     N1: TMenuItem;
     About1: TMenuItem;
     tmrDelay: TTimer;
@@ -139,7 +139,7 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure Exit1Click(Sender: TObject);
     procedure About1Click(Sender: TObject);
-    procedure emporarydisabled1Click(Sender: TObject);
+    procedure mnuAutorunClick(Sender: TObject);
     procedure tmrDelayTimer(Sender: TObject);
     procedure Advanced1Click(Sender: TObject);
     procedure tmFullScreenClick(Sender: TObject);
@@ -960,7 +960,7 @@ end;
 
 procedure TfrmMain.About1Click(Sender: TObject);
 begin
-  MessageDlg('WinXCorners 1.3.1'#13#10'Author: vhanla'#13#10'https://apps.codigobit.info', mtInformation, [mbok], 0);
+  MessageDlg('WinXCorners 1.3.2'#13#10'Author: vhanla'#13#10'https://apps.codigobit.info', mtInformation, [mbok], 0);
 end;
 
 procedure TfrmMain.Advanced1Click(Sender: TObject);
@@ -978,7 +978,7 @@ begin
     reg.OpenKeyReadOnly('SOFTWARE\Microsoft\Windows\CurrentVersion\Run');
     try
       if reg.ReadString('WinXCorners') <> '' then
-        emporarydisabled1.Checked := True;
+        mnuAutorun.Checked := True;
     except
     end;
     reg.CloseKey;
@@ -1005,14 +1005,14 @@ begin
   DesktopManagerW11.MoveWindowToDesktop(Handle, NewDesktop);
 end;
 
-procedure TfrmMain.emporarydisabled1Click(Sender: TObject);
+procedure TfrmMain.mnuAutorunClick(Sender: TObject);
 begin
-  if emporarydisabled1.Checked then
+  if mnuAutorun.Checked then
     RegAutoStart(False)
   else
     RegAutoStart;
 
-  emporarydisabled1.Checked := not emporarydisabled1.Checked;
+  mnuAutorun.Checked := not mnuAutorun.Checked;
 end;
 
 end.
