@@ -127,10 +127,10 @@ WinXcorners is a lightweight utility for Windows 10 and Windows 11 that enhances
 
 ![platform](https://img.shields.io/static/v1.svg?label=Platform&message=Win-32&style=for-the-badge)
 
-| v1.3.0 (2024) | v1.2.1b (2019) |
-|:---------------:|:-----------------:|
-| ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)| ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)| 
-| [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/latest/winxcorners130.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/1.3.0/winxcorners130.zip) | [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/1.2.1b/WinXCornersRegistryFix.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/1.2.1b/WinXCornersRegistryFix.zip) |
+| v1.3.1 (2024) | v1.3.0 (2024) | v1.2.1b (2019) |
+|:---------------:|:---------------:|:-----------------:|
+| ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)| ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)| ![](https://raw.githubusercontent.com/wiki/ryanoasis/nerd-fonts/screenshots/v1.0.x/windows-pass-sm.png)| 
+| [![latest versionbeta](https://img.shields.io/github/downloads/vhanla/winxcorners/latest/winxcorners1.3.1.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/1.3.1/winxcorners1.3.1.zip) | [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/1.3.0/winxcorners130.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/1.3.0/winxcorners130.zip) | [![latest version](https://img.shields.io/github/downloads/vhanla/winxcorners/1.2.1b/WinXCornersRegistryFix.zip.svg)](https://github.com/vhanla/winxcorners/releases/download/1.2.1b/WinXCornersRegistryFix.zip) |
 
 
 
