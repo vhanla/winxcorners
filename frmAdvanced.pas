@@ -165,7 +165,7 @@ end;
 
 procedure TfrmAdvSettings.chkHiddenClick(Sender: TObject);
 begin
-  if Sender is TCheckBox then
+  if Sender is TXCheckBox then
     tmpcmdhid[FCurTab] := chkHidden.Checked;
 end;
 
